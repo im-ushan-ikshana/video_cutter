@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Dramatically hardened the Tauri application webview by enforcing a strict Content Security Policy (CSP) that mathematically guarantees the application cannot instantiate unauthorized external internet connections or execute remote scripts.
-- Restricted the Tauri Asset Protocol scope to block global filesystem read access (removed `**`), ensuring the backend can only fetch media files from explicit, authorized user directories (Downloads, Documents, Videos, Desktop, Temp).
+- Configured the Tauri Asset Protocol to securely serve media payloads across Windows (`http://asset.localhost`) and UNIX (`https://asset.localhost`) boundaries without violating the CSP.
+- Maintained global filesystem read access (`**`) via the Asset Protocol exclusively to ensure seamless editing of massive video files stored on external USB drives, NAS networks, and secondary partitions.
 
 ### Added
 - Introduced a highly robust, interactive PowerShell script (`local_release.ps1`) for compiling and pushing MSI/NSIS bundles natively to GitHub Releases.
