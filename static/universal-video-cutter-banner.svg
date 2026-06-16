@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="Universal Video Cutter banner">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A0E13"/>
+      <stop offset="100%" stop-color="#10161D"/>
+    </linearGradient>
+
+    <radialGradient id="titleGlow" cx="22%" cy="32%" r="55%">
+      <stop offset="0%" stop-color="#36E2C5" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#36E2C5" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="titleFill" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F2F7F8"/>
+      <stop offset="100%" stop-color="#C4DBE0"/>
+    </linearGradient>
+
+    <linearGradient id="cutRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#36E2C5"/>
+      <stop offset="100%" stop-color="#FF8A3D"/>
+    </linearGradient>
+
+    <linearGradient id="bladeHalo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8A3D" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#FF8A3D" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FF8A3D" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="trackFade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10161D" stop-opacity="1"/>
+      <stop offset="6%" stop-color="#10161D" stop-opacity="0"/>
+      <stop offset="94%" stop-color="#10161D" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#10161D" stop-opacity="1"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-200%" y="-200%" width="500%" height="500%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+    </filter>
+
+    <clipPath id="frame">
+      <rect x="0" y="0" width="1200" height="300" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <style>
+    .bar {
+      animation: sliceDip 6.0s linear infinite;
+      transform-box: fill-box;
+    }
+    .blade {
+      animation: bladeSweep 6.0s linear infinite;
+    }
+    @keyframes sliceDip {
+      0%   { transform: scaleY(0.12); filter: brightness(2.4); }
+      6%   { transform: scaleY(1.22); filter: brightness(1.3); }
+      13%  { transform: scaleY(1);    filter: brightness(1);   }
+      100% { transform: scaleY(1);    filter: brightness(1);   }
+    }
+    @keyframes bladeSweep {
+      0%   { transform: translateX(0);          opacity: 0; }
+      4%   { opacity: 1; }
+      96%  { opacity: 1; }
+      100% { transform: translateX(1060px); opacity: 0; }
+    }
+    .title {
+      font-family: "JetBrains Mono","IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .tagline {
+      font-family: -apple-system,"Inter","Segoe UI",sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.2px;
+    }
+    .stack {
+      font-family: "JetBrains Mono","SFMono-Regular",Consolas,monospace;
+      letter-spacing: 0.6px;
+    }
+  </style>
+
+  <g clip-path="url(#frame)">
+    <rect x="0" y="0" width="1200" height="300" fill="url(#bgGrad)"/>
+    <rect x="0" y="0" width="1200" height="300" fill="url(#titleGlow)"/>
+
+    <!-- Title block -->
+    <text x="70" y="118" class="title" font-size="42" fill="url(#titleFill)">Universal Video Cutter</text>
+    <text x="70" y="148" class="tagline" font-size="16" fill="#7C8A99">lossless cuts &#183; hardware-accelerated transcodes &#183; sandboxed by design</text>
+    <rect x="70" y="162" width="92" height="3" rx="1.5" fill="url(#cutRule)"/>
+
+    <!-- Waveform / blade signature -->
+    <g>
+      <rect x="74.14" y="204.42" width="8.28" height="41.16" rx="2" fill="#36E2C5" fill-opacity="0.69" transform-origin="78.28px 225px" style="animation-delay:0.023s" class="bar"/>
+      <rect x="90.7" y="198.54" width="8.28" height="52.92" rx="2" fill="#36E2C5" fill-opacity="0.75" transform-origin="94.84px 225px" style="animation-delay:0.117s" class="bar"/>
+      <rect x="107.27" y="189.52" width="8.28" height="70.96" rx="2" fill="#36E2C5" fill-opacity="0.81" transform-origin="111.41px 225px" style="animation-delay:0.211s" class="bar"/>
+      <rect x="123.83" y="188.56" width="8.28" height="72.88" rx="2" fill="#36E2C5" fill-opacity="0.86" transform-origin="127.97px 225px" style="animation-delay:0.305s" class="bar"/>
+      <rect x="140.39" y="183.45" width="8.28" height="83.1" rx="2" fill="#36E2C5" fill-opacity="0.89" transform-origin="144.53px 225px" style="animation-delay:0.398s" class="bar"/>
+      <rect x="156.95" y="184.51" width="8.28" height="80.98" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="161.09px 225px" style="animation-delay:0.492s" class="bar"/>
+      <rect x="173.52" y="188.81" width="8.28" height="72.38" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="177.66px 225px" style="animation-delay:0.586s" class="bar"/>
+      <rect x="190.08" y="190.73" width="8.28" height="68.54" rx="2" fill="#36E2C5" fill-opacity="0.88" transform-origin="194.22px 225px" style="animation-delay:0.68s" class="bar"/>
+      <rect x="206.64" y="199.87" width="8.28" height="50.26" rx="2" fill="#36E2C5" fill-opacity="0.84" transform-origin="210.78px 225px" style="animation-delay:0.773s" class="bar"/>
+      <rect x="223.2" y="204.87" width="8.28" height="40.26" rx="2" fill="#36E2C5" fill-opacity="0.79" transform-origin="227.34px 225px" style="animation-delay:0.867s" class="bar"/>
+      <rect x="239.77" y="204.49" width="8.28" height="41.02" rx="2" fill="#36E2C5" fill-opacity="0.73" transform-origin="243.91px 225px" style="animation-delay:0.961s" class="bar"/>
+      <rect x="256.33" y="199.21" width="8.28" height="51.58" rx="2" fill="#36E2C5" fill-opacity="0.66" transform-origin="260.47px 225px" style="animation-delay:1.055s" class="bar"/>
+      <rect x="272.89" y="193.41" width="8.28" height="63.18" rx="2" fill="#36E2C5" fill-opacity="0.59" transform-origin="277.03px 225px" style="animation-delay:1.148s" class="bar"/>
+      <rect x="289.45" y="189.11" width="8.28" height="71.78" rx="2" fill="#36E2C5" fill-opacity="0.59" transform-origin="293.59px 225px" style="animation-delay:1.242s" class="bar"/>
+      <rect x="306.02" y="193.67" width="8.28" height="62.66" rx="2" fill="#36E2C5" fill-opacity="0.67" transform-origin="310.16px 225px" style="animation-delay:1.336s" class="bar"/>
+      <rect x="322.58" y="195.73" width="8.28" height="58.54" rx="2" fill="#36E2C5" fill-opacity="0.74" transform-origin="326.72px 225px" style="animation-delay:1.43s" class="bar"/>
+      <rect x="339.14" y="196.52" width="8.28" height="56.96" rx="2" fill="#36E2C5" fill-opacity="0.8" transform-origin="343.28px 225px" style="animation-delay:1.523s" class="bar"/>
+      <rect x="355.7" y="198.7" width="8.28" height="52.6" rx="2" fill="#36E2C5" fill-opacity="0.84" transform-origin="359.84px 225px" style="animation-delay:1.617s" class="bar"/>
+      <rect x="372.27" y="206.16" width="8.28" height="37.68" rx="2" fill="#36E2C5" fill-opacity="0.88" transform-origin="376.41px 225px" style="animation-delay:1.711s" class="bar"/>
+      <rect x="388.83" y="205.86" width="8.28" height="38.28" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="392.97px 225px" style="animation-delay:1.805s" class="bar"/>
+      <rect x="405.39" y="194.96" width="8.28" height="60.08" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="409.53px 225px" style="animation-delay:1.898s" class="bar"/>
+      <rect x="421.95" y="194.33" width="8.28" height="61.34" rx="2" fill="#36E2C5" fill-opacity="0.88" transform-origin="426.09px 225px" style="animation-delay:1.992s" class="bar"/>
+      <rect x="438.52" y="185.07" width="8.28" height="79.86" rx="2" fill="#36E2C5" fill-opacity="0.85" transform-origin="442.66px 225px" style="animation-delay:2.086s" class="bar"/>
+      <rect x="455.08" y="186.33" width="8.28" height="77.34" rx="2" fill="#36E2C5" fill-opacity="0.81" transform-origin="459.22px 225px" style="animation-delay:2.18s" class="bar"/>
+      <rect x="471.64" y="187.45" width="8.28" height="75.1" rx="2" fill="#36E2C5" fill-opacity="0.75" transform-origin="475.78px 225px" style="animation-delay:2.273s" class="bar"/>
+      <rect x="488.2" y="190.16" width="8.28" height="69.68" rx="2" fill="#36E2C5" fill-opacity="0.68" transform-origin="492.34px 225px" style="animation-delay:2.367s" class="bar"/>
+      <rect x="504.77" y="193.53" width="8.28" height="62.94" rx="2" fill="#36E2C5" fill-opacity="0.61" transform-origin="508.91px 225px" style="animation-delay:2.461s" class="bar"/>
+      <rect x="521.33" y="196.4" width="8.28" height="57.2" rx="2" fill="#36E2C5" fill-opacity="0.57" transform-origin="525.47px 225px" style="animation-delay:2.555s" class="bar"/>
+      <rect x="537.89" y="203.03" width="8.28" height="43.94" rx="2" fill="#36E2C5" fill-opacity="0.65" transform-origin="542.03px 225px" style="animation-delay:2.648s" class="bar"/>
+      <rect x="554.45" y="194.1" width="8.28" height="61.8" rx="2" fill="#36E2C5" fill-opacity="0.72" transform-origin="558.59px 225px" style="animation-delay:2.742s" class="bar"/>
+      <rect x="571.02" y="188.34" width="8.28" height="73.32" rx="2" fill="#36E2C5" fill-opacity="0.78" transform-origin="575.16px 225px" style="animation-delay:2.836s" class="bar"/>
+      <rect x="587.58" y="186.27" width="8.28" height="77.46" rx="2" fill="#36E2C5" fill-opacity="0.83" transform-origin="591.72px 225px" style="animation-delay:2.93s" class="bar"/>
+      <rect x="604.14" y="183.75" width="8.28" height="82.5" rx="2" fill="#36E2C5" fill-opacity="0.87" transform-origin="608.28px 225px" style="animation-delay:3.023s" class="bar"/>
+      <rect x="620.7" y="187.59" width="8.28" height="74.82" rx="2" fill="#36E2C5" fill-opacity="0.89" transform-origin="624.84px 225px" style="animation-delay:3.117s" class="bar"/>
+      <rect x="637.27" y="190.89" width="8.28" height="68.22" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="641.41px 225px" style="animation-delay:3.211s" class="bar"/>
+      <rect x="653.83" y="195.35" width="8.28" height="59.3" rx="2" fill="#36E2C5" fill-opacity="0.89" transform-origin="657.97px 225px" style="animation-delay:3.305s" class="bar"/>
+      <rect x="670.39" y="199.35" width="8.28" height="51.3" rx="2" fill="#36E2C5" fill-opacity="0.86" transform-origin="674.53px 225px" style="animation-delay:3.398s" class="bar"/>
+      <rect x="686.95" y="207.99" width="8.28" height="34.02" rx="2" fill="#36E2C5" fill-opacity="0.82" transform-origin="691.09px 225px" style="animation-delay:3.492s" class="bar"/>
+      <rect x="703.52" y="203.08" width="8.28" height="43.84" rx="2" fill="#36E2C5" fill-opacity="0.77" transform-origin="707.66px 225px" style="animation-delay:3.586s" class="bar"/>
+      <rect x="720.08" y="196.71" width="8.28" height="56.58" rx="2" fill="#36E2C5" fill-opacity="0.7" transform-origin="724.22px 225px" style="animation-delay:3.68s" class="bar"/>
+      <rect x="736.64" y="194.28" width="8.28" height="61.44" rx="2" fill="#36E2C5" fill-opacity="0.63" transform-origin="740.78px 225px" style="animation-delay:3.773s" class="bar"/>
+      <rect x="753.2" y="193.96" width="8.28" height="62.08" rx="2" fill="#36E2C5" fill-opacity="0.55" transform-origin="757.34px 225px" style="animation-delay:3.867s" class="bar"/>
+      <rect x="769.77" y="190.87" width="8.28" height="68.26" rx="2" fill="#36E2C5" fill-opacity="0.62" transform-origin="773.91px 225px" style="animation-delay:3.961s" class="bar"/>
+      <rect x="786.33" y="192.33" width="8.28" height="65.34" rx="2" fill="#36E2C5" fill-opacity="0.7" transform-origin="790.47px 225px" style="animation-delay:4.055s" class="bar"/>
+      <rect x="802.89" y="198.01" width="8.28" height="53.98" rx="2" fill="#36E2C5" fill-opacity="0.76" transform-origin="807.03px 225px" style="animation-delay:4.148s" class="bar"/>
+      <rect x="819.45" y="200.57" width="8.28" height="48.86" rx="2" fill="#36E2C5" fill-opacity="0.82" transform-origin="823.59px 225px" style="animation-delay:4.242s" class="bar"/>
+      <rect x="836.02" y="206.38" width="8.28" height="37.24" rx="2" fill="#36E2C5" fill-opacity="0.86" transform-origin="840.16px 225px" style="animation-delay:4.336s" class="bar"/>
+      <rect x="852.58" y="199.27" width="8.28" height="51.46" rx="2" fill="#36E2C5" fill-opacity="0.89" transform-origin="856.72px 225px" style="animation-delay:4.43s" class="bar"/>
+      <rect x="869.14" y="193.12" width="8.28" height="63.76" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="873.28px 225px" style="animation-delay:4.523s" class="bar"/>
+      <rect x="885.7" y="190.17" width="8.28" height="69.66" rx="2" fill="#36E2C5" fill-opacity="0.89" transform-origin="889.84px 225px" style="animation-delay:4.617s" class="bar"/>
+      <rect x="902.27" y="183" width="8.28" height="84" rx="2" fill="#36E2C5" fill-opacity="0.87" transform-origin="906.41px 225px" style="animation-delay:4.711s" class="bar"/>
+      <rect x="918.83" y="186.26" width="8.28" height="77.48" rx="2" fill="#36E2C5" fill-opacity="0.83" transform-origin="922.97px 225px" style="animation-delay:4.805s" class="bar"/>
+      <rect x="935.39" y="185.57" width="8.28" height="78.86" rx="2" fill="#36E2C5" fill-opacity="0.78" transform-origin="939.53px 225px" style="animation-delay:4.898s" class="bar"/>
+      <rect x="951.95" y="186.89" width="8.28" height="76.22" rx="2" fill="#36E2C5" fill-opacity="0.72" transform-origin="956.09px 225px" style="animation-delay:4.992s" class="bar"/>
+      <rect x="968.52" y="195.71" width="8.28" height="58.58" rx="2" fill="#36E2C5" fill-opacity="0.65" transform-origin="972.66px 225px" style="animation-delay:5.086s" class="bar"/>
+      <rect x="985.08" y="200.1" width="8.28" height="49.8" rx="2" fill="#36E2C5" fill-opacity="0.57" transform-origin="989.22px 225px" style="animation-delay:5.18s" class="bar"/>
+      <rect x="1001.64" y="202.12" width="8.28" height="45.76" rx="2" fill="#36E2C5" fill-opacity="0.6" transform-origin="1005.78px 225px" style="animation-delay:5.273s" class="bar"/>
+      <rect x="1018.2" y="192.28" width="8.28" height="65.44" rx="2" fill="#36E2C5" fill-opacity="0.68" transform-origin="1022.34px 225px" style="animation-delay:5.367s" class="bar"/>
+      <rect x="1034.77" y="186.93" width="8.28" height="76.14" rx="2" fill="#36E2C5" fill-opacity="0.75" transform-origin="1038.91px 225px" style="animation-delay:5.461s" class="bar"/>
+      <rect x="1051.33" y="185.2" width="8.28" height="79.6" rx="2" fill="#36E2C5" fill-opacity="0.8" transform-origin="1055.47px 225px" style="animation-delay:5.555s" class="bar"/>
+      <rect x="1067.89" y="183" width="8.28" height="84" rx="2" fill="#36E2C5" fill-opacity="0.85" transform-origin="1072.03px 225px" style="animation-delay:5.648s" class="bar"/>
+      <rect x="1084.45" y="187.92" width="8.28" height="74.16" rx="2" fill="#36E2C5" fill-opacity="0.88" transform-origin="1088.59px 225px" style="animation-delay:5.742s" class="bar"/>
+      <rect x="1101.02" y="189.7" width="8.28" height="70.6" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="1105.16px 225px" style="animation-delay:5.836s" class="bar"/>
+      <rect x="1117.58" y="196.27" width="8.28" height="57.46" rx="2" fill="#36E2C5" fill-opacity="0.9" transform-origin="1121.72px 225px" style="animation-delay:5.93s" class="bar"/>
+
+      <g class="blade" transform="translate(70,0)">
+        <rect x="-7" y="170" width="14" height="110" fill="url(#bladeHalo)" filter="url(#softGlow)"/>
+        <rect x="-1" y="170" width="2" height="110" fill="#FFD7B0"/>
+      </g>
+
+      <rect x="0" y="170" width="70" height="110" fill="url(#trackFade)"/>
+      <rect x="1130" y="170" width="70" height="110" fill="url(#trackFade)" transform="translate(-1200,0) scale(-1,1) translate(-1130,0)"/>
+    </g>
+
+    <!-- Stack credit -->
+    <g class="stack" font-size="12" fill="#52606D">
+      <circle cx="868" cy="284" r="3" fill="#CE6A43"/>
+      <text x="876" y="288">RUST</text>
+      <text x="922" y="288">&#183;</text>
+      <circle cx="936" cy="284" r="3" fill="#36E2C5"/>
+      <text x="944" y="288">TAURI</text>
+      <text x="996" y="288">&#183;</text>
+      <circle cx="1010" cy="284" r="3" fill="#8FBF6B"/>
+      <text x="1018" y="288">FFMPEG</text>
+      <text x="1080" y="288">&#183;</text>
+      <circle cx="1094" cy="284" r="3" fill="#FF8A3D"/>
+      <text x="1102" y="288">SVELTEKIT</text>
+    </g>
+  </g>
+</svg>

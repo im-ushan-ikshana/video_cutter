@@ -1,5 +1,8 @@
-# Universal Video Cutter
+<div align="center">
+  <img src="static/universal-video-cutter-banner.svg" alt="Universal Video Cutter Banner" width="800">
+</div>
 
+# Universal Video Cutter
 Universal Video Cutter is a lightning-fast, sandboxed desktop application built to losslessly slice, compress, and transcode video files—including massive CCTV footage and complex multi-codec payloads.
 
 Powered by a memory-safe **Rust (Tauri)** backend and a hardware-accelerated **FFmpeg** proxy generation engine, it provides butter-smooth scrubbing via a beautiful **SvelteKit** interface.
