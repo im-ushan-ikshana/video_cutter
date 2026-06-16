@@ -49,8 +49,26 @@ Write-Host "========================================" -ForegroundColor Cyan
 
 # 3. Build the Application
 if (-not $SkipBuild) {
-    Write-Host "[INFO] Ensuring FFmpeg sidecars are downloaded..." -ForegroundColor Blue
-    .\download_ffmpeg.ps1
+    $binDir = "src-tauri\bin"
+    $ffmpegExe = "$binDir\ffmpeg-x86_64-pc-windows-msvc.exe"
+    $ffprobeExe = "$binDir\ffprobe-x86_64-pc-windows-msvc.exe"
+    if ((Test-Path $ffmpegExe) -and (Test-Path $ffprobeExe)) {
+        $forceDownloadStr = Read-Host "[?] FFmpeg binaries found locally. Force re-download to ensure latest version? (y/N)"
+        if ($forceDownloadStr -match "^[yY]") {
+            Write-Host "[INFO] Re-downloading FFmpeg sidecars..." -ForegroundColor Blue
+            .\download_ffmpeg.ps1 -Force
+        } else {
+            Write-Host "[INFO] Keeping existing FFmpeg sidecars." -ForegroundColor Green
+        }
+    } else {
+        Write-Host "[INFO] Ensuring FFmpeg sidecars are downloaded..." -ForegroundColor Blue
+        .\download_ffmpeg.ps1
+    }
+
+    Write-Host "[INFO] Cleaning up target directory to prevent artifact contamination..." -ForegroundColor Blue
+    $targetDir = "src-tauri\target\release\bundle"
+    if (Test-Path "$targetDir\msi") { Remove-Item -Recurse -Force "$targetDir\msi\*" -ErrorAction SilentlyContinue }
+    if (Test-Path "$targetDir\nsis") { Remove-Item -Recurse -Force "$targetDir\nsis\*" -ErrorAction SilentlyContinue }
 
     Write-Host "[INFO] Installing dependencies..." -ForegroundColor Blue
     npm install
@@ -93,16 +111,30 @@ if ([string]::IsNullOrWhiteSpace($releaseNotes)) {
 $notesFile = "temp_release_notes.txt"
 $releaseNotes.Trim() | Out-File -FilePath $notesFile -Encoding utf8
 
+Write-Host "`n--- EXTRACTED CHANGELOG ---" -ForegroundColor Cyan
+Write-Host $releaseNotes.Trim()
+Write-Host "---------------------------`n" -ForegroundColor Cyan
+
+$approveChangelog = Read-Host "[?] Does this changelog look correct? (Y/n/Edit)"
+if ($approveChangelog -match "^(?i)e") {
+    Write-Host "[INFO] Opening notepad. Please edit the release notes, save, and close Notepad to continue..." -ForegroundColor Yellow
+    Start-Process notepad.exe $notesFile -Wait
+} elseif ($approveChangelog -match "^(?i)n") {
+    Write-Host "[ERROR] Release aborted by user." -ForegroundColor Red
+    Remove-Item $notesFile -ErrorAction SilentlyContinue
+    exit 1
+}
+
 # 5. Gather Artifacts
 Write-Host "[INFO] Gathering build artifacts..." -ForegroundColor Blue
 $targetDir = "src-tauri\target\release\bundle"
 $artifacts = @()
 
 if (Test-Path "$targetDir\msi") {
-    $artifacts += Get-ChildItem -Path "$targetDir\msi" -Filter "*.msi" | Select-Object -ExpandProperty FullName
+    $artifacts += Get-ChildItem -Path "$targetDir\msi" -Filter "*_${version}_*.msi" | Select-Object -ExpandProperty FullName
 }
 if (Test-Path "$targetDir\nsis") {
-    $artifacts += Get-ChildItem -Path "$targetDir\nsis" -Filter "*.exe" | Select-Object -ExpandProperty FullName
+    $artifacts += Get-ChildItem -Path "$targetDir\nsis" -Filter "*_${version}_*.exe" | Select-Object -ExpandProperty FullName
 }
 
 if ($artifacts.Count -eq 0) {
@@ -115,7 +147,17 @@ foreach ($art in $artifacts) {
     Write-Host "  -> Found: $(Split-Path $art -Leaf)" -ForegroundColor Gray
 }
 
-# 6. Push Release to GitHub
+# 6. Automated Git Tagging
+$tagGitStr = Read-Host "[?] Do you want to securely Git Tag this release ($tagName) and push to origin? (Y/n)"
+if (-not ($tagGitStr -match "^[nN]")) {
+    Write-Host "[INFO] Creating and pushing GPG-signed Git tag..." -ForegroundColor Blue
+    git tag -s $tagName -m "Release $tagName"
+    git push origin $tagName
+} else {
+    Write-Host "[INFO] Skipping Git tagging." -ForegroundColor Yellow
+}
+
+# 7. Push Release to GitHub
 Write-Host "[INFO] Checking if release $tagName already exists..." -ForegroundColor Blue
 & gh release view $tagName --json name >$null 2>&1
 $releaseExists = ($LASTEXITCODE -eq 0)

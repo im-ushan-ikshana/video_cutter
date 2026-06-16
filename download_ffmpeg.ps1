@@ -1,3 +1,17 @@
+param(
+    [switch]$Force = $false
+)
+
+$binDir = "src-tauri\bin"
+$ffmpegExe = "$binDir\ffmpeg-x86_64-pc-windows-msvc.exe"
+$ffprobeExe = "$binDir\ffprobe-x86_64-pc-windows-msvc.exe"
+
+if (-not $Force -and (Test-Path $ffmpegExe) -and (Test-Path $ffprobeExe)) {
+    Write-Host "[INFO] FFmpeg binaries already exist in $binDir. Skipping download." -ForegroundColor Green
+    exit 0
+}
+
+Write-Host "[INFO] Downloading FFmpeg..." -ForegroundColor Yellow
 $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 $zipPath = "ffmpeg.zip"
 $extractPath = "ffmpeg_extracted"
