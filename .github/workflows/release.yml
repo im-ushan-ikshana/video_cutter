@@ -37,6 +37,10 @@ jobs:
         shell: pwsh
         run: ./download_ffmpeg.ps1
 
+      - name: Extract Release Notes
+        id: extract_release_notes
+        uses: ffurrer2/extract-release-notes@v2
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -44,7 +48,7 @@ jobs:
         with:
           tagName: app-v__VERSION__
           releaseName: "Universal Video Cutter v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseBody: ${{ steps.extract_release_notes.outputs.release_notes }}
+          releaseDraft: false
           prerelease: false
           args: "--target x86_64-pc-windows-msvc"
