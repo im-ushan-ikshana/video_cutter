@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #EEF2F6;
+    --surface: #F5F8FA;
+    --card: #FFFFFF;
+    --text-primary: #1E2329;
+    --text-secondary: #4B5563;
+    --text-muted: #828C9A;
+    --border: rgba(0,0,0,0.06);
+    --border-hover: rgba(76,141,255,0.3);
+    --accent: #4C8DFF;
+    --accent-hover: #6BA2FF;
+    --accent-pressed: #3A78E0;
+    --success: #2BB673;
+    --warning: #FFB020;
+    --danger: #E5484D;
+    
+    /* Custom Titlebar Colors */
+    --titlebar-bg-style: #4169E1; /* Royal Blue */
+    --titlebar-text: #FFFFFF;
+    --titlebar-hover: rgba(255, 255, 255, 0.2);
+
+    /* Modern Component Light Theme (Clean Minimalist) */
+    --btn-border-grad-1: #F8FAFC; /* Very light slate */
+    --btn-border-grad-2: #E2E8F0; /* Light slate border */
+    --btn-border-grad-3: #EDF2F7;
+    --btn-bg: #FFFFFF; /* Pure white surface */
+    --btn-bg-hover: #F1F5F9; /* Very subtle hover */
+    --btn-text: #1E293B; /* Crisp dark slate for contrast */
+    --btn-shadow: rgba(0, 0, 0, 0.08); /* Soft shadow */
+    --btn-inner-glow: rgba(255, 255, 255, 1);
+    --btn-ripple: rgba(65, 105, 225, 0.1); /* Subtle blue interaction ripple */
+    --btn-primary-glow: rgba(65, 105, 225, 0.15);
+    --btn-overlay: #CBD5E1; /* Soft gray for noise texture */
+
+    /* Primary Full Background (Light) - Essential Royal Blue Accent */
+    --btn-primary-bg: #4169E1; /* Solid Royal Blue */
+    --btn-primary-bg-hover: #3A5FCD; /* Darker Royal Blue on hover */
+    --btn-primary-text: #FFFFFF;
+  }
+
+  :root.dark {
+    --bg: #111315;
+    --surface: #171A1D;
+    --card: #1D2125;
+    --text-primary: #FFFFFF;
+    --text-secondary: #A5ADB8;
+    --text-muted: #6E7781;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(76,141,255,0.2);
+    color-scheme: dark;
+
+    /* Custom Titlebar Colors */
+    --titlebar-bg-style: linear-gradient(180deg, var(--btn-border-grad-1) 0%, var(--btn-border-grad-2) 66%, var(--btn-border-grad-3) 100%);
+    --titlebar-text: #E0E7FF;
+    --titlebar-hover: rgba(255, 255, 255, 0.1);
+
+    /* Modern Button Dark Theme */
+    --btn-border-grad-1: rgb(56, 56, 56);
+    --btn-border-grad-2: rgb(36, 36, 36);
+    --btn-border-grad-3: rgb(41, 41, 41);
+    --btn-bg: rgb(29, 29, 29);
+    --btn-bg-hover: rgb(38, 38, 42);
+    --btn-text: rgb(218, 218, 218);
+    --btn-shadow: rgba(0,0,0,0.5);
+    --btn-inner-glow: rgb(15, 15, 15);
+    --btn-ripple: rgba(255, 255, 255, 0.2);
+    --btn-primary-glow: rgba(255, 255, 255, 0.05);
+    --btn-overlay: rgb(48, 47, 47);
+
+    /* Primary Full Background (Dark) */
+    --btn-primary-bg: #2B5EBD; /* Deep solid blue */
+    --btn-primary-bg-hover: #3A78E0;
+    --btn-primary-text: #FFFFFF;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    overflow: hidden; /* App-like feel */
+    user-select: none; /* Prevent text selection in UI */
+  }
+
+  /* Custom Scrollbar for modern look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 4px;
+    opacity: 0.5;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+  }
+
+  /* --- Global Modern Layout Classes --- */
+  
+  .modern-card {
+    position: relative;
+    border-radius: 16px;
+    background: linear-gradient(180deg, var(--btn-border-grad-1) 0%, var(--btn-border-grad-2) 66%, var(--btn-border-grad-3) 100%);
+    padding: 1px; /* border thickness */
+    box-shadow: 0 8px 30px var(--btn-shadow);
+    overflow: hidden;
+  }
+
+  .modern-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    background-color: var(--btn-bg);
+    background-image: radial-gradient(at 50% 0%, var(--btn-inner-glow) 0px, transparent 50%);
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  /* Shared noise overlay for cards and titlebar */
+  .noise-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-conic-gradient(var(--btn-overlay) 0.0000001%, var(--btn-bg) 0.000104%) 60% 60%/600% 600%;
+    filter: opacity(10%) contrast(105%);
+    -webkit-filter: opacity(10%) contrast(105%);
+    z-index: 0;
+    border-radius: inherit;
+  }
+
+  /* Titlebar specific styling */
+  .titlebar-modern {
+    position: relative;
+    background: var(--titlebar-bg-style);
+    color: var(--titlebar-text);
+    box-shadow: 0 4px 15px var(--btn-shadow);
+    z-index: 50;
+  }
+  .titlebar-inner {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(at 50% 100%, rgba(255,255,255,0.15) 0px, transparent 100%);
+    z-index: 0;
+  }
+
+  /* Reset default outlines */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-hover);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent text-white rounded-[10px] h-[40px] px-4 font-medium transition-transform duration-150 flex items-center justify-center shadow-sm;
+  }
+  .btn-primary:hover {
+    @apply bg-accent-hover transform -translate-y-[1px] shadow-md;
+  }
+  .btn-primary:active {
+    @apply bg-accent-pressed transform scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-surface text-textPrimary rounded-[10px] h-[40px] px-4 font-medium border border-borderBase transition-all duration-150 flex items-center justify-center;
+  }
+  .btn-secondary:hover {
+    @apply border-borderHover;
+  }
+  .btn-secondary:active {
+    @apply transform scale-95;
+  }
+
+  .panel-border {
+    @apply border border-borderBase rounded-[12px];
+  }
+  .panel-border:hover {
+    @apply border-borderHover;
+  }
+
+  .glass-dialog {
+    background-color: var(--surface);
+    @apply backdrop-blur-md shadow-2xl border border-borderBase rounded-[16px];
+  }
+}
