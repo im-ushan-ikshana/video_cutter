@@ -32,3 +32,13 @@ npm run tauri dev
 # Produce the final Windows MSI/NSIS installers
 npm run tauri build
 ```
+
+## Acknowledgments & Licensing
+
+> [!IMPORTANT]
+> **FFmpeg**  
+> This software uses code of [FFmpeg](https://ffmpeg.org) licensed under the **LGPLv2.1 / GPLv3** and its source can be downloaded from the official FFmpeg website. We do not own FFmpeg, nor do we claim any rights over it. FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project. All FFmpeg binaries utilized by this application are downloaded independently and are subject to their respective open-source licenses.
+
+> [!NOTE]
+> **Application License**  
+> The source code of **Universal Video Cutter** itself is provided "as-is". For specific licensing details regarding this application, please refer to the `LICENSE` file in the root of this repository.
