@@ -5,12 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2026-06-16
+## [1.0.3] - 2026-06-17
 
 ### Security
 - Dramatically hardened the Tauri application webview by enforcing a strict Content Security Policy (CSP) that mathematically guarantees the application cannot instantiate unauthorized external internet connections or execute remote scripts.
 - Configured the Tauri Asset Protocol to securely serve media payloads across Windows (`http://asset.localhost`) and UNIX (`https://asset.localhost`) boundaries without violating the CSP.
 - Maintained global filesystem read access (`**`) via the Asset Protocol exclusively to ensure seamless editing of massive video files stored on external USB drives, NAS networks, and secondary partitions.
+
+### Fixed
+- Fixed an issue where the Video.js player icons (play, pause, volume) failed to render in the production build due to the strict Content Security Policy blocking Vite's compiled font `data:` URIs and Tauri's custom protocols.
+
+## [1.0.2] - 2026-06-16
 
 ### Added
 - Introduced a highly robust, interactive PowerShell script (`local_release.ps1`) for compiling and pushing MSI/NSIS bundles natively to GitHub Releases.
