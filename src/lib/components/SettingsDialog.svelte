@@ -24,7 +24,7 @@
     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
     <!-- Panel -->
-    <div class="relative glass-dialog w-[480px] max-h-[80vh] overflow-y-auto p-6 animate-in">
+    <div class="relative glass-dialog w-[600px] max-h-[85vh] overflow-y-auto p-8 animate-in">
 
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
@@ -132,15 +132,17 @@
       <div>
         <h3 class="text-[13px] font-semibold text-textSecondary uppercase tracking-widest mb-3">Keyboard Shortcuts</h3>
         <div class="panel-border bg-bg/50 p-4 rounded-lg">
-          <div class="grid grid-cols-2 gap-y-2 gap-x-6 text-[12px]">
-            <div class="flex justify-between"><span class="text-textSecondary">Play / Pause</span><kbd class="kbd">Space</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Set In Point</span><kbd class="kbd">I</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Skip Back 5s</span><kbd class="kbd">Shift+←</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Set Out Point</span><kbd class="kbd">O</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Frame Step ←</span><kbd class="kbd">←</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Export</span><kbd class="kbd">Ctrl+E</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Frame Step →</span><kbd class="kbd">→</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Save Project</span><kbd class="kbd">Ctrl+S</kbd></div>
+          <div class="grid grid-cols-2 gap-y-3 gap-x-8 text-[12.5px]">
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Play / Pause</span><kbd class="kbd">Space</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Export Video</span><kbd class="kbd">Ctrl+E</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Set In Point</span><kbd class="kbd">I</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Save Project</span><kbd class="kbd">Ctrl+S</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Set Out Point</span><kbd class="kbd">O</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Skip Back 5s</span><kbd class="kbd">Shift+←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Frame Step ←</span><kbd class="kbd">←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Frame Step →</span><kbd class="kbd">→</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Rewind Video</span><kbd class="kbd">Hold ←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Fast Forward</span><kbd class="kbd">Hold →</kbd></div>
           </div>
         </div>
       </div>

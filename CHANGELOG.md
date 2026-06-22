@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-06-22
+
+### Added
+- Added global, full-window drag-and-drop support natively through the Tauri API, complete with a beautiful, theme-aware drop overlay.
+- Added previously unmentioned keyboard shortcuts (Fast Forward via `Hold →`, Rewind via `Hold ←`) to the Settings dialog.
+
+### Changed
+- Replaced the native OS dropdown in Export Settings with a fully custom, theme-aware interactive dropdown menu.
+- Redesigned the main Video Preview empty state to look sleeker and include a drag-and-drop hint.
+- Increased the width of the Settings Dialog to comfortably accommodate the expanded keyboard shortcuts list.
+
 ## [1.0.3] - 2026-06-17
 
 ### Security
