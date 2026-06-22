@@ -242,15 +242,15 @@
 
 <!-- Global Drag & Drop Overlay -->
 {#if isDraggingOver}
-  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-accent/10 backdrop-blur-sm border-[4px] border-dashed border-accent pointer-events-none transition-all duration-200">
-    <div class="bg-bg/90 p-10 rounded-3xl shadow-2xl flex flex-col items-center border border-accent/30 animate-in zoom-in-95">
-      <div class="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mb-5 animate-bounce">
-        <svg class="w-10 h-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-md pointer-events-none transition-all duration-200">
+    <div class="bg-white dark:bg-[#1A1D21] p-12 rounded-[32px] shadow-[0_0_60px_rgba(76,141,255,0.3)] flex flex-col items-center border-[4px] border-dashed border-accent animate-in zoom-in-95 transform scale-100">
+      <div class="w-24 h-24 bg-gradient-to-br from-[#4c8dff] to-[#0055ff] rounded-full flex items-center justify-center mb-6 animate-bounce shadow-[0_10px_30px_rgba(76,141,255,0.4)]">
+        <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
       </div>
-      <h2 class="text-[20px] font-bold text-textPrimary mb-2">Drop Video File</h2>
-      <p class="text-[14px] text-textSecondary">Release to open this video in Universal Video Cutter</p>
+      <h2 class="text-[24px] font-extrabold text-textPrimary mb-2">Drop Video File Here</h2>
+      <p class="text-[15px] text-textSecondary font-medium">Release to load into Universal Video Cutter</p>
     </div>
   </div>
 {/if}

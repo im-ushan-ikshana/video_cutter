@@ -261,31 +261,11 @@
   {#if $videoSrc}
     <div bind:this={containerEl} class="w-full h-full video-container"></div>
   {:else}
-    <div 
-      class="file-upload-form"
-      role="button"
-      tabindex="0"
-      on:click={() => {
-        const chooseBtn = document.querySelectorAll('button.primary-variant')[0];
-        if (chooseBtn) (chooseBtn as HTMLButtonElement).click();
-      }}
-      on:keydown={(e) => {
-        if (e.key === 'Enter') {
-          const chooseBtn = document.querySelectorAll('button.primary-variant')[0];
-          if (chooseBtn) (chooseBtn as HTMLButtonElement).click();
-        }
-      }}
-    >
-      <div class="file-upload-label">
-        <div class="file-upload-design">
-          <svg viewBox="0 0 640 512" height="1em">
-            <path d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z"></path>
-          </svg>
-          <p class="font-semibold text-[16px] mb-1">Drag and Drop</p>
-          <p class="text-[12px] opacity-70 mb-2">or</p>
-          <span class="browse-button text-[13px] font-medium">Browse file</span>
-        </div>
-      </div>
+    <div class="flex flex-col items-center justify-center w-full h-full opacity-40 select-none pointer-events-none">
+      <svg class="w-20 h-20 mb-4 text-textSecondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+      <p class="text-[16px] font-medium text-textSecondary">No Video Loaded</p>
     </div>
   {/if}
     </div>
@@ -644,64 +624,5 @@
     }
   }
 
-  /* File Upload Design */
-  .file-upload-form {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: transparent;
-    outline: none;
-  }
 
-  .file-upload-label {
-    cursor: pointer;
-    background-color: color-mix(in srgb, var(--surface) 50%, transparent);
-    padding: 30px 70px;
-    border-radius: 40px;
-    border: 2px dashed var(--border);
-    box-shadow: 0px 0px 100px -50px rgba(0, 0, 0, 0.5);
-    color: var(--text-primary);
-    transition: all 0.3s;
-  }
-
-  .file-upload-form:hover .file-upload-label {
-    border-color: var(--accent);
-    background-color: color-mix(in srgb, var(--surface) 80%, var(--accent) 5%);
-    transform: scale(1.02);
-  }
-
-  .file-upload-label svg {
-    height: 50px;
-    fill: var(--text-secondary);
-    margin-bottom: 20px;
-    transition: all 0.3s;
-  }
-  
-  .file-upload-form:hover .file-upload-label svg {
-    fill: var(--accent);
-  }
-
-  .file-upload-design {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-  }
-
-  .browse-button {
-    background-color: var(--border);
-    padding: 5px 15px;
-    border-radius: 10px;
-    color: var(--text-primary);
-    transition: all 0.3s;
-    margin-top: 8px;
-  }
-
-  .file-upload-form:hover .browse-button {
-    background-color: var(--accent);
-    color: white;
-  }
 </style>
