@@ -8,15 +8,17 @@
   import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { videoFilePath, videoSrc, isProxying, proxyProgress, proxyEta, videoDuration, trimStart, trimEnd, previewQuality, videoMetadata } from '$lib/store';
 
   let showPasteDialog = false;
   let pasteInput = "";
   let proxyStartTime = 0;
+  let isDraggingOver = false;
+  let unlistens: (() => void)[] = [];
 
   onMount(async () => {
-    await listen('proxy_progress', (event) => {
+    unlistens.push(await listen('proxy_progress', (event) => {
       const secondsProcessed = event.payload as number;
       if ($videoDuration > 0) {
         $proxyProgress = Math.min((secondsProcessed / $videoDuration) * 100, 100);
@@ -31,7 +33,29 @@
           $proxyEta = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
       }
-    });
+    }));
+
+    unlistens.push(await listen('tauri://drag-enter', () => {
+      isDraggingOver = true;
+    }));
+
+    unlistens.push(await listen('tauri://drag-leave', () => {
+      isDraggingOver = false;
+    }));
+
+    unlistens.push(await listen('tauri://drag-drop', async (event: any) => {
+      isDraggingOver = false;
+      const paths = event.payload?.paths;
+      if (paths && paths.length > 0) {
+        $videoFilePath = paths[0];
+        await loadMetadata();
+        await updateProxy();
+      }
+    }));
+  });
+
+  onDestroy(() => {
+    unlistens.forEach(fn => fn());
   });
 
   async function selectVideo() {
@@ -212,6 +236,21 @@
           Dismiss
         </button>
       </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Global Drag & Drop Overlay -->
+{#if isDraggingOver}
+  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-md pointer-events-none transition-all duration-200">
+    <div class="bg-white dark:bg-[#1A1D21] p-12 rounded-[32px] shadow-[0_0_60px_rgba(76,141,255,0.3)] flex flex-col items-center border-[4px] border-dashed border-accent animate-in zoom-in-95 transform scale-100">
+      <div class="w-24 h-24 bg-gradient-to-br from-[#4c8dff] to-[#0055ff] rounded-full flex items-center justify-center mb-6 animate-bounce shadow-[0_10px_30px_rgba(76,141,255,0.4)]">
+        <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </div>
+      <h2 class="text-[24px] font-extrabold text-textPrimary mb-2">Drop Video File Here</h2>
+      <p class="text-[15px] text-textSecondary font-medium">Release to load into Universal Video Cutter</p>
     </div>
   </div>
 {/if}

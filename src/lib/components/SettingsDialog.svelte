@@ -5,6 +5,15 @@
   function closeSettings() {
     $showSettings = false;
   }
+
+  let isDropdownOpen = false;
+
+  const exportOptions = [
+    { value: "ORIGINAL", label: "Original Format (Fast Cut - Instant)" },
+    { value: "MP4_H264", label: "MP4 (H.264 Universal - Playable everywhere)" },
+    { value: "MP4_HEVC", label: "MP4 (HEVC/H.265 - High Quality/Low Size)" },
+    { value: "WEBM_VP9", label: "WebM (VP9 - Web Optimized)" }
+  ];
 </script>
 
 {#if $showSettings}
@@ -15,7 +24,7 @@
     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
     <!-- Panel -->
-    <div class="relative glass-dialog w-[480px] max-h-[80vh] overflow-y-auto p-6 animate-in">
+    <div class="relative glass-dialog w-[600px] max-h-[85vh] overflow-y-auto p-8 animate-in">
 
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
@@ -72,17 +81,49 @@
               <span class="text-[14px] text-textPrimary font-medium">Format</span>
               <p class="text-[12px] text-textMuted mt-0.5">Container and codec for final export</p>
             </div>
-            <div class="relative w-[180px]">
-              <select bind:value={$exportFormat} class="w-full bg-surface border border-borderBase rounded-lg px-3 py-2 text-[13px] text-textPrimary focus:border-accent outline-none appearance-none cursor-pointer transition-colors hover:border-borderHover shadow-sm">
-                <option value="ORIGINAL">Original Format (Fast Cut - Instant)</option>
-                <option value="MP4_H264">MP4 (H.264 Universal - Playable everywhere)</option>
-                <option value="MP4_HEVC">MP4 (HEVC/H.265 - High Quality/Low Size)</option>
-                <option value="WEBM_VP9">WebM (VP9 - Web Optimized)</option>
-              </select>
-              <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-textSecondary">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </div>
+            
+            <!-- Custom Styled Dropdown -->
+            <div class="relative min-w-[200px]">
+              <button 
+                class="w-full bg-surface border border-borderBase rounded-lg pl-3 pr-2 py-2 text-[13px] text-left text-textPrimary focus:border-accent outline-none cursor-pointer transition-colors hover:border-borderHover shadow-sm flex items-center justify-between"
+                on:click={() => isDropdownOpen = !isDropdownOpen}
+              >
+                <span class="truncate block pr-2">
+                  {exportOptions.find(o => o.value === $exportFormat)?.label || 'Original Format'}
+                </span>
+                <div class="w-5 h-5 flex items-center justify-center rounded-md hover:bg-borderBase/50 transition-colors shrink-0 text-textSecondary">
+                  <svg class={`w-3.5 h-3.5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+              </button>
+              
+              {#if isDropdownOpen}
+                <!-- svelte-ignore a11y-click-events-have-key-events -->
+                <!-- svelte-ignore a11y-no-static-element-interactions -->
+                <div 
+                  class="fixed inset-0 z-40" 
+                  on:click={() => isDropdownOpen = false}
+                ></div>
+                <div class="absolute right-0 mt-1.5 w-[280px] bg-surface border border-borderBase rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
+                  {#each exportOptions as option}
+                    <!-- svelte-ignore a11y-click-events-have-key-events -->
+                    <!-- svelte-ignore a11y-no-static-element-interactions -->
+                    <div 
+                      class="px-3 py-2.5 text-[12.5px] cursor-pointer transition-colors flex items-center gap-2.5
+                      {option.value === $exportFormat ? 'bg-accent/10 text-accent font-medium' : 'text-textPrimary hover:bg-bg/80'}"
+                      on:click={() => { $exportFormat = option.value; isDropdownOpen = false; }}
+                    >
+                      {#if option.value === $exportFormat}
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      {:else}
+                        <div class="w-3.5 h-3.5 shrink-0"></div>
+                      {/if}
+                      <span class="leading-relaxed">{option.label}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
+
           </div>
         </div>
       </div>
@@ -91,15 +132,17 @@
       <div>
         <h3 class="text-[13px] font-semibold text-textSecondary uppercase tracking-widest mb-3">Keyboard Shortcuts</h3>
         <div class="panel-border bg-bg/50 p-4 rounded-lg">
-          <div class="grid grid-cols-2 gap-y-2 gap-x-6 text-[12px]">
-            <div class="flex justify-between"><span class="text-textSecondary">Play / Pause</span><kbd class="kbd">Space</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Set In Point</span><kbd class="kbd">I</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Skip Back 5s</span><kbd class="kbd">Shift+←</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Set Out Point</span><kbd class="kbd">O</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Frame Step ←</span><kbd class="kbd">←</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Export</span><kbd class="kbd">Ctrl+E</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Frame Step →</span><kbd class="kbd">→</kbd></div>
-            <div class="flex justify-between"><span class="text-textSecondary">Save Project</span><kbd class="kbd">Ctrl+S</kbd></div>
+          <div class="grid grid-cols-2 gap-y-3 gap-x-8 text-[12.5px]">
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Play / Pause</span><kbd class="kbd">Space</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Export Video</span><kbd class="kbd">Ctrl+E</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Set In Point</span><kbd class="kbd">I</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Save Project</span><kbd class="kbd">Ctrl+S</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Set Out Point</span><kbd class="kbd">O</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Skip Back 5s</span><kbd class="kbd">Shift+←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Frame Step ←</span><kbd class="kbd">←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Frame Step →</span><kbd class="kbd">→</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Rewind Video</span><kbd class="kbd">Hold ←</kbd></div>
+            <div class="flex justify-between items-center"><span class="text-textSecondary">Fast Forward</span><kbd class="kbd">Hold →</kbd></div>
           </div>
         </div>
       </div>
