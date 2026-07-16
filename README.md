@@ -16,6 +16,18 @@ Powered by a memory-safe **Rust (Tauri)** backend and a hardware-accelerated **F
 - **Automated Temp Cleanup:** Smart garbage collection wipes proxy droppings every 6 hours to protect SSD bloat.
 - **Fully Responsive UI:** Glassmorphism, intelligent Dark/Light mode tracking, and gorgeous animations.
 
+## Supported Formats & Timeline Generation
+
+Universal Video Cutter relies on the Chromium webview for the frontend interface and FFmpeg for the backend processing. Because of this dual architecture, format support is categorized into two tiers: **Browser-Native** and **FFmpeg-Native**.
+
+| Format Tier | Extensions (Examples) | Video Playback | Timeline View Generation | Proxy Required? | Description |
+|---|---|---|---|---|---|
+| **Browser-Native** | `.mp4`, `.webm`, `.ogg`, `.m4v` | ✅ Native (Instant) | ✅ Generated Instantly | No | Formats with codecs supported by Chromium (e.g., H.264, VP8/VP9, AV1). They load immediately, and the timeline is generated in real-time natively via HTML5 Canvas. |
+| **FFmpeg-Native** | `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.ts`, `.mts`, `.m2ts`, `.vob`, `.rmvb`, `.asf`, `.3gp`, `.mpg`, `.dav`, `.mxf`, `.braw` | ❌ Requires Proxy | ❌ Fails if Proxy Skipped | Yes | Formats supported by FFmpeg but not by Chromium webviews. A lightweight `.mp4` proxy is generated for playback. **If the proxy is skipped, timeline generation will fail** and preview playback is impossible, but "blind" trimming is still supported. |
+| **Raw Bitstreams** | `.h264`, `.h265`, `.hevc` | ❌ Requires Proxy | ❌ Fails if Proxy Skipped | Yes | Raw video streams lack a container, making browser decoding impossible. Proxy generation is strictly required for both timeline view and playback. |
+
+> **Note on Timeline Generation**: The timeline thumbnails are generated entirely in the browser using the `<video>` element (`thumbnails.ts`). If a video format cannot be decoded by the browser (FFmpeg-Native) and you choose to *skip proxy generation*, the browser will fail to extract frames. As a result, no Timeline View will be generated.
+
 ## Local Development
 
 ```bash
