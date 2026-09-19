@@ -1,17 +1,146 @@
 <script lang="ts">
-  import { videoFilePath, videoSrc, isProxying, proxyProgress, proxyEta, videoMetadata, currentTime, isPlaying, volume, muted, seekRequest, exportRequest, trimStart, trimEnd, videoDuration } from '$lib/store';
+  import { videoFilePath, videoSrc, isProxying, proxyProgress, proxyEta, videoMetadata, currentTime, isPlaying, volume, muted, seekRequest, exportRequest, trimStart, trimEnd, videoDuration, videoZoom, videoPanX, videoPanY, exportHistory, openVideoRequest, isFullscreen } from '$lib/store';
+  import FullscreenHud from './FullscreenHud.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
-
   import { invoke } from '@tauri-apps/api/core';
+  import { FilmStrip, MagnifyingGlassPlus, Folder, Clock, FileVideo } from 'phosphor-svelte';
+  
+  function formatRelativeDate(iso: string) {
+    const date = new Date(iso);
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `Today, ${time}`;
+    return `${date.toLocaleDateString()} ${time}`;
+  }
+  
+  function triggerOpen() {
+    $openVideoRequest = Date.now();
+  }
 
   let containerEl: HTMLDivElement;
   let player: any = null;
   let videojs: any = null;
   let mounted = false;
+  let isFullscreenLocal = false;
+
+  function toggleFullscreen() {
+    if (!player) return;
+    if (player.isFullscreen()) {
+      player.exitFullscreen();
+    } else {
+      player.requestFullscreen();
+    }
+  }
+
+  function portalTo(node: HTMLElement, target: HTMLElement | null) {
+    if (!target) return;
+    target.appendChild(node);
+    return {
+      update(newTarget: HTMLElement | null) {
+        if (newTarget && newTarget !== target) {
+          newTarget.appendChild(node);
+          target = newTarget;
+        }
+      },
+      destroy() {
+        if (node.parentNode) {
+          node.parentNode.removeChild(node);
+        }
+      }
+    };
+  }
+
+  function createCustomBtnClass(ButtonClass: any, tooltip: string, name: string, clickHandler: () => void) {
+    return class extends ButtonClass {
+      constructor(player: any, options: any) {
+        super(player, options);
+        this.controlText(tooltip);
+      }
+      buildCSSClass() {
+        return `vjs-custom-btn vjs-${name.toLowerCase()} ${super.buildCSSClass()}`;
+      }
+      handleClick() {
+        clickHandler();
+      }
+    };
+  }
 
   let unsubSeek: () => void;
   
+  let isPanning = false;
+  let startPanX = 0;
+  let startPanY = 0;
+  let lastPanX = 0;
+  let lastPanY = 0;
+  let showZoomIndicator = false;
+  let zoomTimeout: any;
+
+  function handleWheel(e: WheelEvent) {
+    if (!$videoSrc) return;
+    const target = e.target as HTMLElement;
+    if (!containerEl.contains(target)) return;
+
+    e.preventDefault();
+    const delta = e.deltaY * -0.002;
+    const newZoom = Math.min(Math.max(1, $videoZoom + delta), 5);
+    $videoZoom = newZoom;
+    
+    if ($videoZoom === 1) {
+      $videoPanX = 0;
+      $videoPanY = 0;
+    }
+
+    showZoomIndicator = true;
+    clearTimeout(zoomTimeout);
+    zoomTimeout = setTimeout(() => showZoomIndicator = false, 1500);
+  }
+
+  function handleMouseDown(e: MouseEvent) {
+    if ($videoZoom <= 1 || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (!containerEl.contains(target)) return;
+
+    isPanning = true;
+    startPanX = e.clientX;
+    startPanY = e.clientY;
+    lastPanX = $videoPanX;
+    lastPanY = $videoPanY;
+  }
+
+  function handleMouseMove(e: MouseEvent) {
+    if (!isPanning) return;
+    $videoPanX = lastPanX + (e.clientX - startPanX);
+    $videoPanY = lastPanY + (e.clientY - startPanY);
+  }
+
+  function handleMouseUp() {
+    isPanning = false;
+  }
+
+  function handleDoubleClick() {
+    if ($videoZoom > 1) {
+      $videoZoom = 1;
+      $videoPanX = 0;
+      $videoPanY = 0;
+      showZoomIndicator = true;
+      clearTimeout(zoomTimeout);
+      zoomTimeout = setTimeout(() => showZoomIndicator = false, 1500);
+    } else {
+      toggleFullscreen();
+    }
+  }
+
+  $: if (browser && containerEl && player) {
+    const tech = containerEl.querySelector('.vjs-tech') as HTMLElement;
+    if (tech) {
+      tech.style.transform = `translate(${$videoPanX}px, ${$videoPanY}px) scale(${$videoZoom})`;
+      tech.style.transition = isPanning ? 'none' : 'transform 0.1s ease-out';
+      tech.style.cursor = $videoZoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'default';
+    }
+  }
+
   let isFastForwarding = false;
   let isRewinding = false;
   let rewindInterval: any;
@@ -23,14 +152,30 @@
 
     if (e.key === ' ') {
       e.preventDefault();
-      if (player.paused()) player.play(); else player.pause();
+      if (player.paused()) {
+        const cur = player.currentTime() || 0;
+        if ($trimEnd > $trimStart && (cur >= $trimEnd - 0.05 || cur < $trimStart)) {
+          player.currentTime($trimStart);
+          $currentTime = $trimStart;
+        }
+        player.play();
+      } else {
+        player.pause();
+      }
     } else if (e.key.toLowerCase() === 'i') {
+      e.preventDefault();
       $trimStart = Math.min($currentTime, $trimEnd - 0.1);
     } else if (e.key.toLowerCase() === 'o') {
+      e.preventDefault();
       $trimEnd = Math.max($currentTime, $trimStart + 0.1);
     } else if (e.key === 'ArrowLeft' && e.shiftKey) {
+      e.preventDefault();
       $seekRequest = Math.max(0, $currentTime - 5);
+    } else if (e.key === 'ArrowRight' && e.shiftKey) {
+      e.preventDefault();
+      $seekRequest = Math.min($videoDuration, $currentTime + 5);
     } else if (e.key === 'ArrowRight' && !e.shiftKey) {
+      e.preventDefault();
       if (e.repeat && !isFastForwarding) {
         isFastForwarding = true;
         wasPlayingBeforeFF = !player.paused();
@@ -40,6 +185,7 @@
         $seekRequest = Math.min($videoDuration, $currentTime + 0.1);
       }
     } else if (e.key === 'ArrowLeft' && !e.shiftKey) {
+      e.preventDefault();
       if (e.repeat && !isRewinding) {
         isRewinding = true;
         wasPlayingBeforeFF = !player.paused();
@@ -53,8 +199,9 @@
     } else if (e.key.toLowerCase() === 'e' && e.ctrlKey) {
       e.preventDefault();
       exportRequest.set(Date.now());
-    } else if (e.key.toLowerCase() === 's' && e.ctrlKey) {
+    } else if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
+      toggleFullscreen();
     }
   }
 
@@ -75,17 +222,39 @@
     }
   }
 
+  function handleBlur() {
+    if (isFastForwarding) {
+      isFastForwarding = false;
+      if (player) {
+        player.playbackRate(1.0);
+        if (!wasPlayingBeforeFF) player.pause();
+      }
+    }
+    if (isRewinding) {
+      isRewinding = false;
+      clearInterval(rewindInterval);
+      if (player && wasPlayingBeforeFF) player.play();
+    }
+    isPanning = false;
+  }
+
+  let lastLoadedFilePath = '';
+  $: if ($videoFilePath !== lastLoadedFilePath) {
+    lastLoadedFilePath = $videoFilePath || '';
+    $videoZoom = 1;
+    $videoPanX = 0;
+    $videoPanY = 0;
+  }
+
   onMount(async () => {
     const mod = await import('video.js');
     videojs = mod.default;
-    await import('video.js/dist/video-js.css');
     mounted = true;
 
     if ($videoSrc) {
       createPlayer($videoSrc);
     }
 
-    // Watch for seek requests from Timeline
     unsubSeek = seekRequest.subscribe((time) => {
       if (time !== null && player) {
         player.currentTime(time);
@@ -113,7 +282,7 @@
     canPlayNatively = testVideo.canPlayType(mime) !== '';
   }
 
-  $: if (containerEl && $videoSrc && browser) {
+  $: if (containerEl && $videoSrc && browser && videojs) {
     setTimeout(() => createPlayer($videoSrc!), 0);
   }
 
@@ -132,6 +301,46 @@
     containerEl.innerHTML = '';
     containerEl.appendChild(videoEl);
 
+    const Button = videojs.getComponent('Button');
+    
+    const registerCustomBtn = (name: string, tooltip: string, clickHandler: () => void) => {
+      if (!videojs.getComponent(name)) {
+        const CustomBtn = createCustomBtnClass(Button, tooltip, name, clickHandler);
+        videojs.registerComponent(name, CustomBtn);
+      }
+    };
+
+    registerCustomBtn('FrameBack', 'Previous Frame', () => {
+      if (player) {
+        const cur = player.currentTime() || 0;
+        const target = Math.max($trimStart, cur - (1/30));
+        player.currentTime(target);
+      }
+    });
+    registerCustomBtn('SkipBack', 'Skip Backward 5s', () => {
+      if (player) {
+        const cur = player.currentTime() || 0;
+        const target = Math.max($trimStart, cur - 5);
+        player.currentTime(target);
+      }
+    });
+    registerCustomBtn('SkipForward', 'Skip Forward 5s', () => {
+      if (player) {
+        const cur = player.currentTime() || 0;
+        const maxBoundary = $trimEnd > $trimStart ? $trimEnd : player.duration();
+        const target = Math.min(maxBoundary, cur + 5);
+        player.currentTime(target);
+      }
+    });
+    registerCustomBtn('FrameForward', 'Next Frame', () => {
+      if (player) {
+        const cur = player.currentTime() || 0;
+        const maxBoundary = $trimEnd > $trimStart ? $trimEnd : player.duration();
+        const target = Math.min(maxBoundary, cur + (1/30));
+        player.currentTime(target);
+      }
+    });
+
     player = videojs(videoEl, {
       controls: true,
       autoplay: false,
@@ -143,7 +352,11 @@
       controlBar: {
         volumePanel: { inline: false, vertical: true },
         children: [
+          'FrameBack',
+          'SkipBack',
           'playToggle',
+          'SkipForward',
+          'FrameForward',
           'volumePanel',
           'currentTimeDisplay',
           'timeDivider',
@@ -156,24 +369,76 @@
       sources: [{ src, type: guessType(src) }]
     });
 
+    let rangeWatcherId: number | null = null;
+    function startRangeWatcher() {
+      stopRangeWatcher();
+      function checkRange() {
+        if (player && !player.paused()) {
+          const cur = player.currentTime() || 0;
+          if ($trimEnd > $trimStart && cur >= $trimEnd) {
+            player.pause();
+            player.currentTime($trimStart);
+            $currentTime = $trimStart;
+            return;
+          }
+          rangeWatcherId = requestAnimationFrame(checkRange);
+        }
+      }
+      rangeWatcherId = requestAnimationFrame(checkRange);
+    }
+
+    function stopRangeWatcher() {
+      if (rangeWatcherId !== null) {
+        cancelAnimationFrame(rangeWatcherId);
+        rangeWatcherId = null;
+      }
+    }
+
     let lastTimeUpdate = 0;
     player.on('timeupdate', () => {
       if (player) {
+        const cur = player.currentTime() || 0;
+        if ($trimEnd > $trimStart && cur >= $trimEnd) {
+          player.pause();
+          player.currentTime($trimStart);
+          $currentTime = $trimStart;
+          return;
+        }
         const now = performance.now();
-        // Throttle Svelte store reactivity to ~60ms (approx 16fps) to save CPU
         if (now - lastTimeUpdate > 60) {
-          $currentTime = player.currentTime() || 0;
+          $currentTime = cur;
           lastTimeUpdate = now;
         }
       }
     });
-    player.on('play', () => { $isPlaying = true; });
-    player.on('pause', () => { $isPlaying = false; });
+
+    player.on('play', () => {
+      $isPlaying = true;
+      if (player) {
+        const cur = player.currentTime() || 0;
+        if ($trimEnd > $trimStart && (cur >= $trimEnd - 0.05 || cur < $trimStart)) {
+          player.currentTime($trimStart);
+          $currentTime = $trimStart;
+        }
+      }
+      startRangeWatcher();
+    });
+
+    player.on('pause', () => {
+      $isPlaying = false;
+      stopRangeWatcher();
+    });
+
     player.on('volumechange', () => {
       if (player) {
         $volume = player.volume() || 1;
         $muted = player.muted() || false;
       }
+    });
+
+    player.on('fullscreenchange', () => {
+      isFullscreenLocal = player.isFullscreen();
+      $isFullscreen = isFullscreenLocal;
     });
   }
 
@@ -185,247 +450,364 @@
 
   onDestroy(() => {
     if (unsubSeek) unsubSeek();
+    if (rewindInterval) clearInterval(rewindInterval);
+    if (zoomTimeout) clearTimeout(zoomTimeout);
     if (player) {
-      try { player.dispose(); } catch (_) { /* ignore */ }
+      try { player.dispose(); } catch (_) { }
       player = null;
     }
   });
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
+<svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} on:blur={handleBlur} />
 
-<div class="w-full h-full modern-card group">
-  <div class="modern-card-inner flex flex-col items-center justify-center relative { $videoSrc ? '!bg-black !bg-none' : '' }">
-    <div class="noise-overlay" class:hidden={$videoSrc}></div>
-    <div class="relative z-10 w-full h-full flex flex-col items-center justify-center">
-  {#if $isProxying}
-    <!-- Background Dimmer -->
-    <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm z-10 p-8">
-      
-      <!-- Premium Theme-Aware Glass Card -->
-      <div class="w-full max-w-lg p-8 rounded-2xl flex flex-col items-center text-center shadow-2xl relative overflow-hidden bg-white/85 dark:bg-[#1D2125]/85 backdrop-blur-2xl border border-black/10 dark:border-white/10">
-        
-        <div class="cube-spinner mb-6">
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
-          <div></div>
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div 
+  class="w-full h-full bg-black relative overflow-hidden"
+  class:cursor-default={!$videoSrc}
+  class:cursor-zoom-in={$videoSrc && $videoZoom === 1}
+  class:cursor-grab={$videoZoom > 1}
+  class:cursor-grabbing={isPanning}
+  on:wheel|nonpassive={handleWheel}
+  on:mousedown={handleMouseDown}
+  on:dblclick={handleDoubleClick}
+>
+  <div class="relative z-10 w-full h-full flex flex-col items-center justify-center">
+    
+    {#if $isProxying}
+      <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md z-10 p-8">
+        <div class="w-full max-w-lg p-8 rounded-2xl flex flex-col items-center text-center shadow-2xl relative overflow-hidden bg-[var(--bg-elevated)] border border-[var(--border-base)]">
+          <div class="w-10 h-10 border-2 border-[var(--border-base)] border-t-[var(--accent)] rounded-full animate-spin mb-6"></div>
+          <h2 class="text-[var(--text-primary)] font-semibold text-[16px] mb-2">Optimizing Video Preview</h2>
+          
+          {#if $videoMetadata}
+            <p class="text-[var(--text-secondary)] text-[12px] mb-6 font-mono bg-[var(--bg-deep)] px-3 py-1.5 rounded-md border border-[var(--border-base)]">
+              {$videoMetadata.width}x{$videoMetadata.height} • {$videoMetadata.codec} • {$videoMetadata.frame_rate}
+            </p>
+          {/if}
+
+          <div class="w-full bg-[var(--bg-deep)] rounded-full h-2 mb-2 overflow-hidden border border-[var(--border-base)]">
+            <div class="h-full bg-[var(--accent)] transition-all duration-300 ease-out" style="width: {$proxyProgress}%"></div>
+          </div>
+          
+          <div class="flex justify-between w-full text-[11px] text-[var(--text-muted)] font-mono mb-6">
+            <span>{Math.round($proxyProgress)}%</span>
+            <span>{$proxyEta ? `ETA: ${$proxyEta}` : 'Calculating...'}</span>
+          </div>
+
+          <button class="btn-ghost px-6 text-[13px] font-medium" on:click={() => invoke('cancel_proxy')}>
+            Skip Proxy & Edit Directly
+          </button>
         </div>
-        
-        <h2 class="text-textPrimary font-semibold text-[18px] mb-2">Optimizing Video Preview</h2>
-        
-        {#if $videoMetadata}
-          <p class="text-textSecondary text-[12px] mb-6 font-mono bg-black/5 dark:bg-black/40 px-3 py-1.5 rounded-md border border-black/10 dark:border-white/5 shadow-inner">
-            {$videoMetadata.width}x{$videoMetadata.height} • {$videoMetadata.codec} • {$videoMetadata.frame_rate}
-          </p>
-        {/if}
+      </div>
+    {/if}
 
-        <div class="w-full bg-black/10 dark:bg-black/40 rounded-full h-3 mb-2 overflow-hidden border border-black/10 dark:border-white/10 relative shadow-inner">
-          <div class="h-full bg-accent transition-all duration-300 ease-out relative" style="width: {$proxyProgress}%">
-            <div class="absolute inset-0 bg-white/20 w-full opacity-50" style="background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 2s infinite linear;"></div>
+    <div 
+      bind:this={containerEl} 
+      class="w-full h-full video-container" 
+      class:hidden={!$videoSrc}
+    ></div>
+
+    {#if player && isFullscreenLocal}
+      <div use:portalTo={player.el()}>
+        <FullscreenHud {player} onExitFullscreen={toggleFullscreen} />
+      </div>
+    {/if}
+
+    {#if !$videoSrc}
+      <div class="absolute inset-0 flex flex-col w-full h-full p-8 overflow-y-auto no-scrollbar gap-8">
+        
+        <!-- Dashboard Dropzone -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="w-full shrink-0 h-[220px] rounded-2xl bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border-strong)] flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-[var(--bg-surface)] hover:border-[var(--accent)] transition-colors group" on:click={triggerOpen}>
+          <div class="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-base)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent)] group-hover:scale-110 transition-all duration-300">
+            <FilmStrip size={32} weight="regular" />
+          </div>
+          <div class="text-center">
+            <p class="text-[15px] font-semibold text-[var(--text-primary)]">Drop a video to begin</p>
+            <p class="text-[12.5px] text-[var(--text-muted)] mt-1">or click here to open a file</p>
           </div>
         </div>
-        
-        <div class="flex justify-between w-full text-[12px] text-textSecondary font-mono mb-6">
-          <span>{Math.round($proxyProgress)}%</span>
-          <span>{$proxyEta ? `ETA: ${$proxyEta}` : 'Calculating ETA...'}</span>
+
+        <!-- History Section -->
+        <div class="flex-1 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-[13px] font-semibold tracking-wide uppercase text-[var(--text-muted)]">Recent Cuts</h3>
+          </div>
+          
+          {#if $exportHistory.length === 0}
+            <div class="flex-1 flex flex-col items-center justify-center gap-2 opacity-50 py-10">
+              <Folder size={32} weight="thin" class="text-[var(--text-muted)]" />
+              <p class="text-[12px] text-[var(--text-muted)] font-medium">No recent cuts found</p>
+            </div>
+          {:else}
+            <div class="grid grid-cols-2 gap-4 pb-8">
+              {#each $exportHistory as record}
+                <div class="bg-[var(--bg-elevated)] border border-[var(--border-base)] rounded-xl p-4 flex flex-col gap-3 hover:border-[var(--border-strong)] transition-colors">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                      <p class="text-[13px] font-medium text-[var(--text-primary)] truncate" title={record.outputPath.split(/[\\/]/).pop()}>
+                        {record.outputPath.split(/[\\/]/).pop()}
+                      </p>
+                      <p class="text-[11.5px] text-[var(--text-muted)] truncate flex items-center gap-1.5 mt-0.5">
+                        <FileVideo size={12} />
+                        from {record.sourcePath.split(/[\\/]/).pop()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center gap-4 text-[11px] font-mono text-[var(--text-secondary)] mt-auto pt-2 border-t border-[var(--border-subtle)]">
+                    <span class="flex items-center gap-1"><Clock size={12} /> {record.duration.toFixed(2)}s cut</span>
+                    <span>{formatRelativeDate(record.date)}</span>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
 
-        <div class="bg-warning/10 border border-warning/20 text-warning px-4 py-3 rounded-xl text-[12px] w-full mb-6 text-left flex gap-3 shadow-sm">
-          <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <p class="leading-relaxed">Large files (4K/HEVC) may take several minutes to optimize. You can skip this step to edit immediately, but timeline scrubbing may be laggy.</p>
-        </div>
-
-        {#if canPlayNatively}
-          <button 
-            class="px-8 py-3 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 border border-black/10 dark:border-white/10 rounded-xl text-[13px] font-semibold text-textPrimary transition-all active:scale-[0.98] shadow-sm"
-            on:click={() => invoke('cancel_proxy')}
-          >
-            Skip Proxy & Edit Now
-          </button>
-        {:else}
-          <button 
-            class="px-8 py-3 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 rounded-xl text-[13px] font-semibold text-textMuted cursor-not-allowed opacity-50 shadow-sm"
-            title="Your browser cannot natively decode this format. Proxy generation is required."
-            disabled
-          >
-            Skip Proxy (Format requires proxy)
-          </button>
-        {/if}
       </div>
-    </div>
-  {/if}
+    {/if}
 
-  {#if $videoSrc}
-    <div bind:this={containerEl} class="w-full h-full video-container"></div>
-  {:else}
-    <div class="flex flex-col items-center justify-center w-full h-full opacity-40 select-none pointer-events-none">
-      <svg class="w-20 h-20 mb-4 text-textSecondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-      </svg>
-      <p class="text-[16px] font-medium text-textSecondary mb-1">No Video Loaded</p>
-      <p class="text-[13px] text-textMuted font-medium">Choose a video or drag and drop</p>
-    </div>
-  {/if}
-    </div>
+    {#if showZoomIndicator}
+      <div class="absolute top-3 right-3 z-50 backdrop-blur-md border border-[var(--border-base)] rounded-full px-3 py-1 flex items-center gap-1 opacity-100 transition-opacity" style="background: var(--bg-tooltip);">
+        <MagnifyingGlassPlus size={11} color="var(--text-secondary)" />
+        <span class="font-mono text-[10px] text-[var(--text-secondary)]">{Math.round($videoZoom * 100)}%</span>
+      </div>
+    {/if}
   </div>
 </div>
 
 <style>
-  @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
+  .video-container { position: relative; width: 100%; height: 100%; }
 
-  .video-container { position: relative; }
-
-  /* === FULL CUSTOM VIDEO.JS THEME === */
   .video-container :global(.video-js) {
     width: 100% !important;
     height: 100% !important;
-    background-color: transparent !important; /* Let the container bg show */
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
-    font-size: 13px !important;
+    background-color: transparent !important;
+    font-family: var(--font-body) !important;
+    font-size: 12px !important;
   }
   .video-container :global(.vjs-tech) {
     object-fit: contain;
   }
 
-  /* Control bar - Modern Floating Island */
+  /* Glass Floating Control Bar */
   .video-container :global(.vjs-control-bar) {
-    background: rgba(23, 26, 29, 0.3) !important;
-    backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px !important;
+    position: absolute !important;
+    bottom: 16px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 48px) !important;
+    max-width: 720px !important;
     height: 48px !important;
-    padding: 0 12px !important;
-    margin: 0 20px 20px 20px !important; /* Float above the bottom edge */
-    width: auto !important; /* Let it shrink or fill */
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    border-radius: var(--radius-2xl) !important;
+    background: rgba(10, 10, 12, 0.70) !important;
+    backdrop-filter: blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 4px 6px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.3) !important;
     display: flex !important;
     align-items: center !important;
-    gap: 4px !important; /* Gap between controls */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-    transition: background 0.3s ease, opacity 0.3s, transform 0.3s !important;
-  }
-  .video-container :global(.vjs-control-bar:hover) {
-    background: rgba(23, 26, 29, 0.85) !important;
-    backdrop-filter: blur(12px) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-  }
-  
-  /* Hide control bar when inactive/playing */
-  .video-container :global(.vjs-has-started.vjs-user-inactive.vjs-playing .vjs-control-bar) {
-    opacity: 0 !important;
-    transform: translateY(10px) !important;
+    padding: 0 8px !important;
+    gap: 4px !important;
+    transition: opacity 150ms ease, transform 300ms ease !important;
   }
 
-  /* Progress Control (Timeline in player) */
+  :global(.light) .video-container :global(.vjs-control-bar) {
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 1) inset, 0 4px 12px rgba(0, 0, 0, 0.1), 0 16px 40px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Fullscreen: hide default video.js control bar so our Studio Fullscreen HUD takes over */
+  :global(.video-js.vjs-fullscreen .vjs-control-bar) {
+    display: none !important;
+  }
+
+
+  .video-container :global(.vjs-has-started.vjs-user-inactive.vjs-playing .vjs-control-bar) {
+    opacity: 0 !important;
+    transform: translate(-50%, 10px) !important;
+    pointer-events: none !important;
+  }
+
+  /* Progress Scrubber */
   .video-container :global(.vjs-progress-control) {
-    flex: 1 1 auto !important; /* Take remaining space */
-    height: 100% !important;
+    flex: 1 1 auto !important;
     display: flex !important;
     align-items: center !important;
     min-width: 100px !important;
-    margin: 0 8px !important;
+    margin: 0 12px !important;
+    cursor: ew-resize !important;
   }
   .video-container :global(.vjs-progress-holder) {
-    height: 4px !important;
-    border-radius: 2px !important;
+    height: 3px !important;
+    border-radius: 9999px !important;
     margin: 0 !important;
     width: 100% !important;
+    background: rgba(255,255,255,0.12) !important;
     transition: height 120ms ease !important;
+    cursor: ew-resize !important;
+  }
+  :global(.light) .video-container :global(.vjs-progress-holder) {
+    background: rgba(0,0,0,0.1) !important;
   }
   .video-container :global(.vjs-progress-control:hover .vjs-progress-holder) {
-    height: 6px !important;
+    height: 5px !important;
   }
   .video-container :global(.vjs-play-progress) {
     background-color: var(--accent) !important;
-    border-radius: 2px !important;
+    background-image: var(--accent-gradient) !important;
+    border-radius: 9999px !important;
   }
   .video-container :global(.vjs-play-progress::before) {
-    /* Thumb dot */
     content: '' !important;
     position: absolute !important;
     right: -6px !important;
-    top: -3px !important;
+    top: 50% !important;
+    margin-top: -6px !important;
     width: 12px !important;
     height: 12px !important;
-    background: var(--accent) !important;
+    background: white !important;
     border-radius: 50% !important;
-    border: 2px solid #fff !important;
-    box-shadow: 0 0 6px rgba(76,141,255,0.6) !important;
+    box-shadow: 0 0 0 3px var(--accent-dim) !important;
     font-size: 0 !important;
-    transition: transform 120ms ease !important;
-    animation: thumbPulse 2s infinite ease-in-out;
+    opacity: 0 !important;
+    transform: scale(0) !important;
+    transition: all var(--dur-fast) var(--ease-spring) !important;
   }
-  
-  @keyframes thumbPulse {
-    0% { box-shadow: 0 0 0 0 rgba(76,141,255,0.7); }
-    70% { box-shadow: 0 0 0 6px rgba(76,141,255,0); }
-    100% { box-shadow: 0 0 0 0 rgba(76,141,255,0); }
-  }
-
   .video-container :global(.vjs-progress-control:hover .vjs-play-progress::before) {
-    transform: scale(1.25) !important;
-    animation: none;
+    opacity: 1 !important;
+    transform: scale(1) !important;
   }
 
-  /* Buttons */
+  /* Default Button Styling */
   .video-container :global(.vjs-control-bar .vjs-button) {
-    width: 36px !important;
-    height: 36px !important;
-    border-radius: 8px !important;
-    transition: background 120ms ease, transform 120ms ease !important;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: var(--radius-md) !important;
+    background: transparent !important;
+    color: rgba(255,255,255,0.65) !important;
+    transition: all 100ms var(--ease-out) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
   }
+  :global(.light) .video-container :global(.vjs-control-bar .vjs-button) {
+    color: rgba(20,20,30,0.75) !important;
+  }
   .video-container :global(.vjs-control-bar .vjs-button:hover) {
-    background: rgba(255,255,255,0.12) !important;
+    background: rgba(255,255,255,0.08) !important;
+    color: white !important;
+  }
+  :global(.light) .video-container :global(.vjs-control-bar .vjs-button:hover) {
+    background: rgba(0,0,0,0.05) !important;
+    color: rgba(20,20,30,1) !important;
   }
   .video-container :global(.vjs-control-bar .vjs-button:active) {
-    transform: scale(0.92) !important;
+    transform: scale(0.96) !important;
   }
   .video-container :global(.vjs-icon-placeholder::before) {
-    font-size: 18px !important;
     line-height: 1 !important;
-    position: static !important; /* Fix alignment */
+    font-size: 15px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
   }
+  .video-container :global(.vjs-custom-btn .vjs-icon-placeholder::before) {
+    content: '' !important;
+  }
 
-  /* Play button icon size */
-  .video-container :global(.vjs-play-control .vjs-icon-placeholder::before) {
-    font-size: 22px !important;
+  /* Play Button (Center Hero in Control Bar) */
+  .video-container :global(.vjs-play-control) {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: var(--radius-md) !important;
+    background-color: var(--accent) !important;
+    background-image: var(--accent-gradient) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 10px rgba(var(--accent-rgb), 0.35) !important;
+    transition: all 120ms var(--ease-out) !important;
+    margin: 0 4px !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+  :global(.light) .video-container :global(.vjs-play-control) {
+    color: #fff !important; /* Make sure it stays white against accent */
+  }
+  :global(.light) .video-container :global(.vjs-play-control:hover) {
+    color: #fff !important;
+  }
+  .video-container :global(.vjs-play-control:hover) {
+    filter: brightness(1.08) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.45) !important;
+  }
+  .video-container :global(.vjs-play-control:active) {
+    transform: scale(0.96) translateY(0) !important;
+    transition-duration: 60ms !important;
+  }
+
+  /* Navigation SVG Icons (monoline Phosphor style via CSS Masks) */
+  .video-container :global(.vjs-frameback .vjs-icon-placeholder),
+  .video-container :global(.vjs-skipback .vjs-icon-placeholder),
+  .video-container :global(.vjs-skipforward .vjs-icon-placeholder),
+  .video-container :global(.vjs-frameforward .vjs-icon-placeholder) {
+    width: 16px !important; 
+    height: 16px !important;
+    background-color: currentColor !important;
+  }
+
+  .video-container :global(.vjs-frameback .vjs-icon-placeholder) {
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M160,208L80,128L160,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M160,208L80,128L160,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+  }
+  
+  .video-container :global(.vjs-skipback .vjs-icon-placeholder) {
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M200,208L120,128L200,48M112,208L32,128L112,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M200,208L120,128L200,48M112,208L32,128L112,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+  }
+  
+  .video-container :global(.vjs-skipforward .vjs-icon-placeholder) {
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M56,208L136,128L56,48M144,208L224,128L144,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M56,208L136,128L56,48M144,208L224,128L144,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+  }
+  
+  .video-container :global(.vjs-frameforward .vjs-icon-placeholder) {
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M96,208L176,128L96,48'/%3E%3C/svg%3E") no-repeat center center / contain;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-linejoin='round' stroke-width='16' d='M96,208L176,128L96,48'/%3E%3C/svg%3E") no-repeat center center / contain;
   }
 
   /* Time display */
   .video-container :global(.vjs-time-control) {
-    font-size: 12px !important;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-    color: rgba(255,255,255,0.8) !important;
-    line-height: 1 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 10.5px !important;
+    color: rgba(255,255,255,0.55) !important;
+    letter-spacing: 0.04em !important;
+    white-space: nowrap !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
     min-width: auto !important;
   }
+  :global(.light) .video-container :global(.vjs-time-control) {
+    color: rgba(20,20,30,0.65) !important;
+  }
   .video-container :global(.vjs-time-divider) {
-    color: rgba(255,255,255,0.4) !important;
+    color: rgba(255,255,255,0.30) !important;
     padding: 0 4px !important;
     display: flex !important;
     align-items: center !important;
   }
+  :global(.light) .video-container :global(.vjs-time-divider) {
+    color: rgba(20,20,30,0.40) !important;
+  }
 
-  /* Volume Panel (Vertical Popup) */
+  /* Volume Panel */
   .video-container :global(.vjs-volume-panel) {
     display: flex !important;
     align-items: center !important;
@@ -436,28 +818,28 @@
     bottom: 100% !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    background: rgba(23,26,29,0.95) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 8px !important;
+    background: rgba(10, 10, 12, 0.70) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-radius: 12px !important;
     padding: 12px 0 !important;
     height: 100px !important;
     width: 36px !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
     margin-bottom: 8px !important;
     z-index: 50;
-    transition: opacity 0.2s, transform 0.2s;
   }
   .video-container :global(.vjs-volume-level) {
     background-color: var(--accent) !important;
     width: 100% !important;
   }
   .video-container :global(.vjs-volume-bar) {
-    width: 4px !important;
+    width: 3px !important;
     margin: 0 auto !important;
-    border-radius: 2px !important;
+    border-radius: 9999px !important;
     background: rgba(255,255,255,0.2) !important;
     height: 100% !important;
+    cursor: ns-resize !important;
   }
 
   /* Playback rate menu */
@@ -465,9 +847,9 @@
     width: 44px !important;
   }
   .video-container :global(.vjs-playback-rate .vjs-playback-rate-value) {
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    line-height: 1 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -476,56 +858,61 @@
 
   /* Menus */
   .video-container :global(.vjs-menu) {
-    border-radius: 8px !important;
+    border-radius: 12px !important;
     overflow: hidden !important;
   }
   .video-container :global(.vjs-menu-content) {
-    background: rgba(23,26,29,0.95) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 8px !important;
+    background: rgba(10, 10, 12, 0.70) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255,255,255,0.09) !important;
+    border-radius: 12px !important;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-    bottom: 48px !important; /* Push above control bar */
+    bottom: 48px !important;
   }
   .video-container :global(.vjs-menu-item) {
     font-size: 12px !important;
     padding: 8px 16px !important;
     transition: background 100ms !important;
+    cursor: pointer !important;
+    border-radius: 8px !important;
+    margin: 2px !important;
   }
   .video-container :global(.vjs-menu-item:hover) {
-    background: rgba(76,141,255,0.15) !important;
+    background: rgba(255,255,255,0.1) !important;
     color: #fff !important;
   }
-  .video-container :global(.vjs-menu-item-text) {
-    font-family: 'Inter', sans-serif !important;
+  .video-container :global(.vjs-menu-item.vjs-selected) {
+    color: var(--accent) !important;
+    background: var(--accent-dim) !important;
   }
 
-  /* Big play button (Center screen) */
+  /* Big play button (Center screen empty state) */
   .video-container :global(.vjs-big-play-button) {
-    background: rgba(23, 26, 29, 0.6) !important;
-    backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 50% !important;
-    width: 72px !important;
-    height: 72px !important;
-    line-height: 72px !important;
-    font-size: 32px !important;
+    background: rgba(10, 10, 12, 0.65) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: var(--radius-lg) !important; /* 12px square */
+    width: 56px !important;
+    height: 56px !important;
+    line-height: 56px !important;
+    font-size: 24px !important;
     color: #fff !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s, box-shadow 0.2s !important;
+    transition: all 200ms var(--ease-spring) !important;
     margin: 0 !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
+    cursor: pointer !important;
   }
   .video-container :global(.vjs-big-play-button:hover) {
-    background: rgba(76,141,255,0.9) !important;
-    border-color: rgba(255,255,255,0.2) !important;
-    transform: translate(-50%, -50%) scale(1.1) !important;
-    box-shadow: 0 12px 40px rgba(76,141,255,0.4) !important;
+    background: var(--accent) !important;
+    border-color: var(--accent-bright) !important;
+    transform: translate(-50%, -50%) scale(1.10) !important;
+    box-shadow: 0 8px 32px var(--glow-accent) !important;
   }
   .video-container :global(.vjs-big-play-button:active) {
-    transform: translate(-50%, -50%) scale(0.95) !important;
+    transform: translate(-50%, -50%) scale(0.94) !important;
+    transition-duration: 80ms !important;
   }
   .video-container :global(.vjs-big-play-button .vjs-icon-placeholder::before) {
     display: flex !important;
@@ -533,97 +920,4 @@
     justify-content: center !important;
     position: static !important;
   }
-
-  /* Loading spinner */
-  .video-container :global(.vjs-loading-spinner) {
-    border-color: rgba(255,255,255,0.1) !important;
-    border-top-color: var(--accent) !important;
-    border-radius: 50% !important;
-  }
-
-  /* Load progress (buffered) */
-  .video-container :global(.vjs-load-progress) {
-    background: rgba(255,255,255,0.1) !important;
-    border-radius: 2px !important;
-  }
-  .video-container :global(.vjs-load-progress div) {
-    background: rgba(255,255,255,0.2) !important;
-  }
-
-  /* Slider focus */
-  .video-container :global(.vjs-slider:focus) {
-    box-shadow: none !important; /* Removing default ugly ring, using thumb scale instead */
-  }
-
-  /* Tooltips */
-  .video-container :global(.vjs-time-tooltip),
-  .video-container :global(.vjs-mouse-display .vjs-time-tooltip) {
-    background: rgba(23,26,29,0.95) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 6px !important;
-    font-size: 11px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    padding: 4px 8px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
-  }
-
-  /* From Uiverse.io by AqFox - Theme Aware 3D Cube */
-  .cube-spinner {
-    width: 44px;
-    height: 44px;
-    animation: spinner-y0fdc1 2.5s infinite ease;
-    transform-style: preserve-3d;
-  }
-
-  .cube-spinner > div {
-    /* Mix 20% of the active accent color with transparent to get a dynamic theme-aware translucent blue */
-    background-color: color-mix(in srgb, var(--accent) 20%, transparent);
-    height: 100%;
-    position: absolute;
-    width: 100%;
-    border: 2px solid var(--accent);
-    box-shadow: 0 0 15px color-mix(in srgb, var(--accent) 40%, transparent);
-  }
-
-  .cube-spinner div:nth-of-type(1) {
-    transform: translateZ(-22px) rotateY(180deg);
-  }
-
-  .cube-spinner div:nth-of-type(2) {
-    transform: rotateY(-270deg) translateX(50%);
-    transform-origin: top right;
-  }
-
-  .cube-spinner div:nth-of-type(3) {
-    transform: rotateY(270deg) translateX(-50%);
-    transform-origin: center left;
-  }
-
-  .cube-spinner div:nth-of-type(4) {
-    transform: rotateX(90deg) translateY(-50%);
-    transform-origin: top center;
-  }
-
-  .cube-spinner div:nth-of-type(5) {
-    transform: rotateX(-90deg) translateY(50%);
-    transform-origin: bottom center;
-  }
-
-  .cube-spinner div:nth-of-type(6) {
-    transform: translateZ(22px);
-  }
-
-  @keyframes spinner-y0fdc1 {
-    0% {
-      transform: rotate(45deg) rotateX(-25deg) rotateY(25deg);
-    }
-    50% {
-      transform: rotate(45deg) rotateX(-385deg) rotateY(25deg);
-    }
-    100% {
-      transform: rotate(45deg) rotateX(-385deg) rotateY(385deg);
-    }
-  }
-
-
 </style>

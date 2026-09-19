@@ -41,22 +41,28 @@ export async function generateThumbnails(
 
     signal?.addEventListener('abort', () => {
       video.src = '';
+      video.removeAttribute('src');
+      video.load();
       resolve(thumbnails);
     });
 
     video.addEventListener('error', () => {
       // Video can't be decoded by browser (e.g., CCTV .dav format)
       console.warn('Thumbnail generation failed: browser cannot decode this video format.');
+      video.src = '';
+      video.removeAttribute('src');
+      video.load();
       resolve([]);
     });
 
     video.addEventListener('loadedmetadata', () => {
       if (signal?.aborted) return;
       // Calculate aspect ratio to determine canvas width
-      const aspectRatio = video.videoWidth / video.videoHeight;
+      const rawRatio = video.videoHeight > 0 ? (video.videoWidth / video.videoHeight) : (16 / 9);
+      const aspectRatio = isFinite(rawRatio) && rawRatio > 0 ? rawRatio : (16 / 9);
       canvas.height = height;
       // Cap max width to 200 to prevent VRAM spikes on ultra-wide content
-      canvas.width = Math.min(Math.round(height * aspectRatio), 200);
+      canvas.width = Math.max(10, Math.min(Math.round(height * aspectRatio), 200));
 
       seekToNext();
     });
@@ -64,6 +70,8 @@ export async function generateThumbnails(
     function seekToNext() {
       if (currentIndex >= count || signal?.aborted) {
         video.src = ''; // Release video resources
+        video.removeAttribute('src');
+        video.load();
         resolve(thumbnails);
         return;
       }
