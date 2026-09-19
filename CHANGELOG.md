@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-09-19
+
+### Added
+- Bundled Google Fonts locally without external CDN requests: `Faculty Glyphic` across the application UI and `Modern Antiqua` for titlebar branding and headers.
+- Introduced Obsidian dark theme with amber/orange accents matching high-end creative workstation aesthetics.
+- Added a dedicated Home button in the titlebar allowing seamless navigation back to the welcome screen.
+- Added a fullscreen floating HUD with an integrated mini-timeline, playback scrub controls, and a 2.5-second idle auto-fade that only activates in fullscreen mode.
+- Added an opt-in toggle in Settings for hardware-assisted proxy video generation, giving users full control over disk usage.
+- Added Rust background temp and appdata cache manager with LRU auto-cleanup (2 GB budget / 7-day retention) to prevent disk bloat.
+
+### Changed
+- Enforced playback boundary looping strictly between the active trim in and out points (`trimStart` to `trimEnd`).
+- Unified file opening behavior across all dialogs to support both raw video files and `.cutterproj` project files with confirmation on unsaved changes.
+- Expanded the Settings dialog width and button constraints to ensure clean label readability without text clipping across all themes.
+
+### Fixed
+- Fixed fullscreen control autohide bug where controls incorrectly faded when not in fullscreen mode.
+- Fixed Rust release compilation warning regarding unused window variable.
+
 ## [1.0.4] - 2026-06-22
 
 ### Added
