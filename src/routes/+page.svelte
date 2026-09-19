@@ -9,7 +9,8 @@
   import { invoke, convertFileSrc } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { onMount, onDestroy } from 'svelte';
-  import { videoFilePath, videoSrc, isProxying, proxyProgress, proxyEta, videoDuration, trimStart, trimEnd, previewQuality, videoMetadata } from '$lib/store';
+  import { videoFilePath, videoSrc, isProxying, proxyProgress, proxyEta, videoDuration, trimStart, trimEnd, previewQuality, videoMetadata, exportFormat, exportQuality, autoSnap, projectLoadRequest, openVideoRequest, pasteVideoRequest, enableProxy } from '$lib/store';
+  import { type ProjectData, loadProjectFromFile } from '$lib/project';
 
   let showPasteDialog = false;
   let pasteInput = "";
@@ -47,24 +48,92 @@
       isDraggingOver = false;
       const paths = event.payload?.paths;
       if (paths && paths.length > 0) {
-        $videoFilePath = paths[0];
-        await loadMetadata();
-        await updateProxy();
+        await openFile(paths[0]);
       }
     }));
+
+    const unsubProject = projectLoadRequest.subscribe(async (data: ProjectData | null) => {
+      if (data) {
+        if ($isProxying) {
+            await invoke('cancel_proxy');
+        }
+        
+        $videoFilePath = data.videoFilePath;
+        $exportFormat = data.exportFormat;
+        $exportQuality = data.exportQuality;
+        $autoSnap = data.autoSnap;
+        if (data.previewQuality) $previewQuality = data.previewQuality;
+
+        // Try to load metadata
+        const success = await loadMetadata();
+        if (success) {
+            // Restore trim points AFTER metadata load, otherwise they might get reset
+            $trimStart = data.trimStart;
+            $trimEnd = data.trimEnd;
+            await setupVideoPlayback();
+        }
+        
+        // Reset request
+        $projectLoadRequest = null;
+      }
+    });
+    unlistens.push(unsubProject);
+
+    const unsubOpen = openVideoRequest.subscribe((val) => {
+      if (val > 0) selectVideo();
+    });
+    unlistens.push(unsubOpen);
+
+    const unsubPaste = pasteVideoRequest.subscribe((val) => {
+      if (val > 0) pasteVideo();
+    });
+    unlistens.push(unsubPaste);
   });
 
   onDestroy(() => {
     unlistens.forEach(fn => fn());
   });
 
+  async function openFile(filePath: string) {
+    if (!filePath) return;
+    const lower = filePath.toLowerCase();
+    if (lower.endsWith('.json') || lower.endsWith('.cutterproj')) {
+      try {
+        const projectData = await loadProjectFromFile(filePath);
+        if (projectData) {
+          $projectLoadRequest = projectData;
+          return;
+        }
+      } catch (e) {
+        console.warn("File was not a valid project, proceeding as video file:", e);
+      }
+    }
+
+    if ($isProxying) {
+      await invoke('cancel_proxy');
+    }
+    $videoFilePath = filePath;
+    const success = await loadMetadata();
+    if (success) {
+      await setupVideoPlayback();
+    }
+  }
+
   async function selectVideo() {
     const selected = await open({
       multiple: false,
       filters: [
         {
+          name: 'Supported Files (Videos & Projects)',
+          extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'ogg', 'vob', 'ts', 'm2ts', 'mts', 'rm', 'rmvb', 'asf', '3gp', 'm4v', 'mpg', 'mpeg', 'dav', 'h264', 'h265', 'hevc', 'av1', 'braw', 'r3d', 'mxf', 'cutterproj', 'json']
+        },
+        {
           name: 'Video Files',
           extensions: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'ogg', 'vob', 'ts', 'm2ts', 'mts', 'rm', 'rmvb', 'asf', '3gp', 'm4v', 'mpg', 'mpeg', 'dav', 'h264', 'h265', 'hevc', 'av1', 'braw', 'r3d', 'mxf']
+        },
+        {
+          name: 'Cut Project Files',
+          extensions: ['cutterproj', 'json']
         },
         {
           name: 'All Files',
@@ -72,23 +141,45 @@
         }
       ]
     });
-    if (selected) {
-      $videoFilePath = selected as string;
-      await loadMetadata();
-      await updateProxy();
+    if (selected && typeof selected === 'string') {
+      await openFile(selected);
     }
   }
 
-  async function loadMetadata() {
+  async function loadMetadata(): Promise<boolean> {
     try {
       const metadata: any = await invoke('get_video_metadata', { path: $videoFilePath });
       $videoMetadata = metadata;
       $videoDuration = metadata.duration;
       $trimStart = 0;
       $trimEnd = $videoDuration; // Select full video by default
+      return true;
     } catch (e) {
       console.error("Failed to load metadata", e);
+      appError = "Failed to load video metadata: " + e;
+      return false;
     }
+  }
+
+  async function setupVideoPlayback() {
+    if (!$videoFilePath) return;
+    if ($enableProxy) {
+      await updateProxy();
+    } else {
+      if ($isProxying) {
+        await invoke('cancel_proxy');
+        $isProxying = false;
+      }
+      $videoSrc = convertFileSrc($videoFilePath);
+    }
+  }
+
+  let previousEnableProxy: boolean | null = null;
+  $: if ($videoFilePath) {
+    if (previousEnableProxy !== null && previousEnableProxy !== $enableProxy) {
+      setupVideoPlayback();
+    }
+    previousEnableProxy = $enableProxy;
   }
 
   async function updateProxy() {
@@ -127,9 +218,7 @@
     let path = pasteInput.trim().replace(/^["']|["']$/g, '');
     showPasteDialog = false;
     if (path) {
-      $videoFilePath = path;
-      await loadMetadata();
-      await updateProxy();
+      await openFile(path);
     }
   }
 
@@ -143,43 +232,87 @@
   }
 </script>
 
-<div class="flex flex-col w-full h-full p-5 gap-3">
+<div class="flex-1 flex flex-col p-5 gap-4 relative">
+  {#if !$videoFilePath}
+    <!-- Professional Studio Welcome / Initial Window -->
+    <div class="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 animate-in fade-in duration-300 zoom-in-95 max-w-4xl mx-auto w-full">
+      
+      <!-- Studio Header Section (Using Modern Antiqua for the app name) -->
+      <div class="flex flex-col items-center text-center mb-7">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-dim)] border border-[var(--accent)]/30 text-[var(--accent-bright)] text-[10.5px] font-mono font-semibold tracking-wider uppercase mb-3.5 shadow-sm">
+          <span>Lossless Video Engine</span>
+          <span class="opacity-50">&middot;</span>
+          <span>Fast Proxy Trimmer</span>
+        </div>
 
-  <!-- Toolbar -->
-  <div class="flex items-center justify-between shrink-0 mb-1">
-    <div class="flex items-center gap-3">
-      <button class="modern-btn primary-variant" on:click={selectVideo}>
-        <span>
-          <svg class="mr-1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          Choose Video
-        </span>
-        <div class="button-overlay"></div>
-      </button>
+        <h1 class="font-brand text-4xl sm:text-5xl lg:text-[52px] font-normal text-textPrimary tracking-normal mb-3 leading-tight">
+          Universal Video Cutter
+        </h1>
 
-      <button class="modern-btn secondary-variant" on:click={pasteVideo}>
-        <span>
-          <svg class="mr-1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-          Paste Path
-        </span>
-        <div class="button-overlay"></div>
-      </button>
+        <p class="text-[14px] text-textSecondary max-w-xl leading-relaxed font-sans font-normal">
+          High-performance, frame-accurate video trimming with zero quality loss. Rapidly scrub massive footage, select in/out ranges, and export pristine clips instantly.
+        </p>
+      </div>
+
+      <!-- Drag & Drop Studio Card -->
+      <div 
+        class="matte-glass-card rounded-[28px] p-8 sm:p-10 max-w-lg w-full flex flex-col items-center text-center border-dashed border-[2px] border-borderBase hover:border-accent transition-all duration-200 cursor-pointer group shadow-xl relative overflow-hidden" 
+        on:click={selectVideo} 
+        on:keydown={(e) => e.key === 'Enter' && selectVideo()} 
+        role="button" 
+        tabindex="0"
+      >
+        <!-- Subtle Glow backdrop -->
+        <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full bg-accent/10 blur-3xl pointer-events-none group-hover:bg-accent/20 transition-all duration-500"></div>
+
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-all duration-300 relative z-10">
+          <img src="/player.png" alt="Universal Video Cutter Icon" class="w-16 h-16 rounded-2xl shadow-lg object-contain select-none pointer-events-none ring-1 ring-black/5 dark:ring-white/10" />
+        </div>
+
+        <h2 class="text-lg font-semibold text-textPrimary mb-1.5 tracking-tight relative z-10">
+          Drop your video file here
+        </h2>
+        <p class="text-textSecondary mb-5 text-[12.5px] leading-relaxed max-w-sm relative z-10">
+          Drag and drop any video from your files, or click to browse.
+        </p>
+
+        <div class="flex items-center gap-2.5 relative z-10">
+          <button class="btn-primary px-6 h-9 text-[12.5px] rounded-xl shadow-lg shadow-accent/20">
+            Select Video File
+          </button>
+          <span class="text-[11px] text-textMuted font-mono bg-bg border border-borderBase px-2.5 py-1.5 rounded-lg">
+            Ctrl+O
+          </span>
+        </div>
+
+        <!-- Supported Formats Badges -->
+        <div class="flex flex-wrap items-center justify-center gap-1.5 mt-6 pt-5 border-t border-borderBase/60 w-full relative z-10">
+          {#each ['MP4', 'MKV', 'MOV', 'WebM', 'AVI', 'ProRes', 'HEVC'] as fmt}
+            <span class="px-2 py-0.5 rounded-md text-[9.5px] font-mono font-medium text-textMuted bg-bg/70 border border-borderBase">
+              {fmt}
+            </span>
+          {/each}
+        </div>
+      </div>
     </div>
-  </div>
-
-  <!-- Main Layout -->
-  <div class="flex flex-1 gap-3 min-h-0">
-    <div class="w-[65%] h-full flex flex-col min-h-0">
-      <VideoPreview />
+  {:else}
+    <!-- Grid Layout -->
+    <div class="flex-1 flex flex-col lg:flex-row gap-4 min-h-0 min-w-0">
+      <div class="flex-1 min-w-0 min-h-[300px] lg:min-h-0 matte-glass-card rounded-2xl overflow-hidden relative flex flex-col">
+        <VideoPreview />
+      </div>
+      <div class="w-full lg:w-[280px] shrink-0 lg:h-full flex flex-col gap-4 min-h-0 min-w-0">
+        <div class="flex-1 matte-glass-card rounded-2xl overflow-hidden min-h-[300px] lg:min-h-0">
+          <ControlPanel />
+        </div>
+      </div>
     </div>
-    <div class="w-[35%] h-full min-h-0">
-      <ControlPanel />
+    
+    <!-- Floating Timeline -->
+    <div class="h-[160px] shrink min-h-[100px] w-full matte-glass-card rounded-2xl overflow-hidden p-2">
+      <Timeline />
     </div>
-  </div>
-
-  <!-- Timeline -->
-  <div class="h-[130px] shrink-0 w-full">
-    <Timeline />
-  </div>
+  {/if}
 </div>
 
 <!-- Settings Dialog (floating overlay) -->
@@ -219,9 +352,9 @@
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="fixed inset-0 z-[70] flex items-center justify-center" on:click|self={closeAppError}>
     <div class="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-none transition-opacity"></div>
-    <div class="relative glass-dialog w-[400px] p-6 animate-in fade-in zoom-in-95 duration-200 border-error/30">
+    <div class="relative glass-dialog w-[400px] p-6 animate-in fade-in zoom-in-95 duration-200 border-danger/30">
       <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+        <div class="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center shrink-0">
           <svg class="w-5 h-5 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -232,7 +365,7 @@
       <p class="text-[13px] text-textSecondary mb-6 leading-relaxed whitespace-pre-wrap">{appError}</p>
       
       <div class="flex justify-end">
-        <button class="px-5 py-2.5 bg-error/20 hover:bg-error/30 text-error font-medium rounded-lg text-[13px] transition-colors" on:click={closeAppError}>
+        <button class="px-5 py-2.5 bg-danger/20 hover:bg-danger/30 text-danger font-medium rounded-lg text-[13px] transition-colors" on:click={closeAppError}>
           Dismiss
         </button>
       </div>
@@ -243,8 +376,8 @@
 <!-- Global Drag & Drop Overlay -->
 {#if isDraggingOver}
   <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 dark:bg-black/70 backdrop-blur-md pointer-events-none transition-all duration-200">
-    <div class="bg-white dark:bg-[#1A1D21] p-12 rounded-[32px] shadow-[0_0_60px_rgba(76,141,255,0.3)] flex flex-col items-center border-[4px] border-dashed border-accent animate-in zoom-in-95 transform scale-100">
-      <div class="w-24 h-24 bg-gradient-to-br from-[#4c8dff] to-[#0055ff] rounded-full flex items-center justify-center mb-6 animate-bounce shadow-[0_10px_30px_rgba(76,141,255,0.4)]">
+    <div class="bg-white dark:bg-card p-12 rounded-[32px] shadow-[0_0_60px_rgba(var(--accent-rgb),0.25)] flex flex-col items-center border-[3px] border-dashed border-accent animate-in zoom-in-95 transform scale-100">
+      <div class="w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-[0_10px_25px_rgba(var(--accent-rgb),0.35)]" style="background: var(--accent-gradient);">
         <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
@@ -255,161 +388,4 @@
   </div>
 {/if}
 
-<style>
-  /* From Uiverse.io by alaetr_2429 */ 
-  .modern-btn {
-    font-size: 13px;
-    border-radius: 12px;
-    background: linear-gradient(
-      180deg,
-      var(--btn-border-grad-1) 0%,
-      var(--btn-border-grad-2) 66%,
-      var(--btn-border-grad-3) 100%
-    );
-    color: var(--btn-text);
-    border: none;
-    padding: 2px;
-    font-weight: 600;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    transform-origin: center;
-    box-shadow: 0 4px 10px var(--btn-shadow);
-  }
 
-  .modern-btn span {
-    border-radius: 10px;
-    padding: 0.6em 1.2em;
-    text-shadow: 0px 0px 20px rgba(0,0,0,0.3);
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: inherit;
-    transition: all 0.3s ease;
-    background-color: var(--btn-bg);
-    background-image: radial-gradient(
-        at 95% 89%,
-        var(--btn-inner-glow) 0px,
-        transparent 50%
-      ),
-      radial-gradient(at 0% 100%, var(--btn-inner-glow) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, var(--btn-bg) 0px, transparent 50%);
-  }
-
-  /* Primary variant uses solid full background color */
-  .modern-btn.primary-variant span {
-    background-color: var(--btn-primary-bg);
-    color: var(--btn-primary-text);
-    background-image: radial-gradient(
-        at 95% 89%,
-        var(--btn-primary-glow) 0px,
-        transparent 50%
-      ),
-      radial-gradient(at 0% 100%, var(--btn-primary-glow) 0px, transparent 50%),
-      radial-gradient(at 0% 0%, var(--btn-primary-bg) 0px, transparent 50%);
-  }
-
-  /* Secondary variant is purely background color based */
-  .modern-btn.secondary-variant span {
-    color: var(--text-primary);
-  }
-
-  .modern-btn:hover span {
-    background-color: var(--btn-bg-hover);
-  }
-
-  .modern-btn.primary-variant:hover span {
-    background-color: var(--btn-primary-bg-hover);
-  }
-
-  .button-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-conic-gradient(
-        var(--btn-overlay) 0.0000001%,
-        var(--btn-bg) 0.000104%
-      )
-      60% 60%/600% 600%;
-    filter: opacity(10%) contrast(105%);
-    -webkit-filter: opacity(10%) contrast(105%);
-  }
-
-  /* 🔥 Circular hover effect */
-  .modern-btn::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: radial-gradient(
-      circle,
-      var(--btn-ripple) 0%,
-      rgba(255, 255, 255, 0) 70%
-    );
-    transform: translate(-50%, -50%) scale(0);
-    transition:
-      transform 0.6s ease,
-      opacity 0.8s ease;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .modern-btn.primary-variant::after {
-    background: radial-gradient(
-      circle,
-      var(--btn-primary-glow) 0%,
-      rgba(76, 141, 255, 0) 70%
-    );
-  }
-
-  .modern-btn:hover::after {
-    width: 200%;
-    height: 200%;
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-
-  /* 🌊 Click ripple effect */
-  .modern-btn:active::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--btn-ripple);
-    transform: translate(-50%, -50%) scale(0);
-    animation: ripple-click 0.5s ease-out forwards;
-    pointer-events: none;
-  }
-
-  .modern-btn:active {
-    transform: scale(0.97);
-    filter: brightness(1.1);
-  }
-
-  .modern-btn:hover {
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
-  }
-
-  .modern-btn.primary-variant:hover {
-    box-shadow: 0 0 15px rgba(76, 141, 255, 0.15);
-  }
-
-  @keyframes ripple-click {
-    0% {
-      transform: translate(-50%, -50%) scale(0);
-      opacity: 1;
-    }
-    100% {
-      transform: translate(-50%, -50%) scale(3);
-      opacity: 0;
-    }
-  }
-</style>
