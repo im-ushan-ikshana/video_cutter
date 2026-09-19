@@ -20,10 +20,14 @@ export default {
         },
         success: 'var(--success)',
         warning: 'var(--warning)',
-        danger: 'var(--danger)'
+        danger: 'var(--danger)',
+        error: 'var(--error)',
+        titlebarText: 'var(--titlebar-text)'
       },
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif']
+        sans: ['"Faculty Glyphic"', 'Inter', 'Segoe UI', 'system-ui', 'sans-serif'],
+        brand: ['"Modern Antiqua"', 'serif'],
+        mono: ['"JetBrains Mono Variable"', 'Fira Code', 'monospace']
       }
     }
   },
